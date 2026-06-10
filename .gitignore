@@ -53,6 +53,7 @@ Assets/save/
 !.gitignore
 !.gitattributes
 !README_GIT.md
+!AGENTS.md
 
 # Source files and their Unity meta files.
 !Assets/**/*.cs

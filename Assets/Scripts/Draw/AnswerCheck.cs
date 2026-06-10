@@ -518,7 +518,7 @@ namespace jxzt
                 layer.lineType = lineMatch.StudentLineType;
                 standardlayer.displayError_position = lineMatch.ErrorPosition;
 
-                string lineMatchDetail = $"recall={lineMatch.Recall:F3};precision={lineMatch.Precision:F3};missing={lineMatch.MissingRatio:F3};extra={lineMatch.ExtraRatio:F3};p95={lineMatch.P95Distance:F1};bestOffset={lineMatch.BestOffset};studentLineType={lineMatch.StudentLineType};standardLineType={standardlayer.lineType};patterned={lineMatch.IsPatternedMode};geometry={lineMatch.GeometryPrecision:F3};macro={lineMatch.MacroCoverage:F3};macroLimit={lineMatch.MacroCoverageLimit:F3};span={lineMatch.PatternLengthRatio:F3};endpointMiss={lineMatch.PatternEndpointMiss:F1};endpointLimit={lineMatch.PatternEndpointLimit:F1};extraSpan={lineMatch.PatternExtraSpanRatio:F3};lengthRatio={lineMatch.ProjectedLengthRatio:F3}";
+                string lineMatchDetail = $"recall={lineMatch.Recall:F3};precision={lineMatch.Precision:F3};missing={lineMatch.MissingRatio:F3};extra={lineMatch.ExtraRatio:F3};p95={lineMatch.P95Distance:F1};bestOffset={lineMatch.BestOffset};studentLineType={lineMatch.StudentLineType};standardLineType={standardlayer.lineType};patterned={lineMatch.IsPatternedMode};geometry={lineMatch.GeometryPrecision:F3};macro={lineMatch.MacroCoverage:F3};macroLimit={lineMatch.MacroCoverageLimit:F3};span={lineMatch.PatternLengthRatio:F3};endpointMiss={lineMatch.PatternEndpointMiss:F1};endpointLimit={lineMatch.PatternEndpointLimit:F1};extraSpan={lineMatch.PatternExtraSpanRatio:F3};lengthRatio={lineMatch.ProjectedLengthRatio:F3};rawCandidates={lineMatch.RawCandidateCount};corePixels={lineMatch.CorePixelCount};ignoredAuxiliary={lineMatch.IgnoredAuxiliaryPixelCount};extensionPixels={lineMatch.ExtensionPixelCount};trueExtensionRatio={lineMatch.TrueExtensionRatio:F3}";
                 ScoringPerf.LayerMatchMetric(standardlayer.layerNum, lineMatchDetail);
                 if (ScoringPerf.VerboseLayerLogs)
                 {
@@ -993,6 +993,11 @@ namespace jxzt
             public float PatternEndpointLimit;
             public float PatternExtraSpanRatio;
             public float ProjectedLengthRatio;
+            public int RawCandidateCount;
+            public int CorePixelCount;
+            public int IgnoredAuxiliaryPixelCount;
+            public int ExtensionPixelCount;
+            public float TrueExtensionRatio;
             public Vector2Int BestOffset;
             public linetype StudentLineType;
             public Vector2 ErrorPosition;
@@ -1007,6 +1012,32 @@ namespace jxzt
             public float Min;
             public float Max;
             public float Length;
+        }
+
+        private sealed class LineStudentEvidence
+        {
+            public List<PositionInt> CorePixels = new List<PositionInt>();
+            public List<PositionInt> ExtensionPixels = new List<PositionInt>();
+            public List<PositionInt> IgnoredAuxiliaryPixels = new List<PositionInt>();
+            public int RawCandidateCount;
+            public float TrueExtensionRatio;
+            public float EvidenceProjectedLength;
+
+            public List<PositionInt> GetCoreAndExtensionPixels()
+            {
+                if (ExtensionPixels == null || ExtensionPixels.Count == 0)
+                {
+                    return CorePixels ?? new List<PositionInt>();
+                }
+
+                List<PositionInt> pixels = new List<PositionInt>((CorePixels?.Count ?? 0) + ExtensionPixels.Count);
+                if (CorePixels != null)
+                {
+                    pixels.AddRange(CorePixels);
+                }
+                pixels.AddRange(ExtensionPixels);
+                return pixels;
+            }
         }
 
         private sealed class PolylineGroup
@@ -1958,9 +1989,39 @@ namespace jxzt
                 return result;
             }
 
+            LineStudentEvidence evidence = null;
+            List<PositionInt> scoreStudentPixels = studentCandidatePixels;
+            List<PositionInt> spanStudentPixels = studentCandidatePixels;
+            if (standardLayer.lineshape == lineshape.直线)
+            {
+                evidence = BuildLineStudentEvidence(studentCandidatePixels, shiftedStandardPixels, mainAxis, result.Tolerance, usePatternedLineMatch);
+                result.RawCandidateCount = evidence.RawCandidateCount;
+                result.CorePixelCount = evidence.CorePixels.Count;
+                result.IgnoredAuxiliaryPixelCount = evidence.IgnoredAuxiliaryPixels.Count;
+                result.ExtensionPixelCount = evidence.ExtensionPixels.Count;
+                result.TrueExtensionRatio = evidence.TrueExtensionRatio;
+
+                scoreStudentPixels = evidence.CorePixels;
+                spanStudentPixels = evidence.GetCoreAndExtensionPixels();
+                if (scoreStudentPixels.Count == 0)
+                {
+                    result.HasStudentPixels = false;
+                    result.ExtraErrorPosition = evidence.IgnoredAuxiliaryPixels.Count > 0 ? GetAveragePoint(evidence.IgnoredAuxiliaryPixels) : result.ExtraErrorPosition;
+                    return result;
+                }
+            }
+            else
+            {
+                result.RawCandidateCount = studentCandidatePixels.Count;
+                result.CorePixelCount = studentCandidatePixels.Count;
+                result.IgnoredAuxiliaryPixelCount = 0;
+                result.ExtensionPixelCount = 0;
+                result.TrueExtensionRatio = 0f;
+            }
+
             if (usePatternedLineMatch)
             {
-                return EvaluatePatternedLineMatch(result, shiftedStandardPixels, studentCandidatePixels, mainAxis, standardProjectedLength);
+                return EvaluatePatternedLineMatch(result, shiftedStandardPixels, scoreStudentPixels, mainAxis, standardProjectedLength, evidence);
             }
 
             int maxSearchDistance = Mathf.CeilToInt(result.Tolerance * 3f);
@@ -1975,12 +2036,12 @@ namespace jxzt
             if (useDistanceFieldForStandard)
             {
                 DistanceField studentDistanceField = null;
-                using (ScoringPerf.ScopeDetailed(ScoringPerf.TitleKey($"AnswerCheck.DistanceFieldStudent#{standardLayer.layerNum}", ScoringPerf.CurrentTitleId), $"targets={studentCandidatePixels.Count};query={shiftedStandardPixels.Count};roi={DescribeBounds(standardQueryBounds)};maxDistance={maxSearchDistance}"))
+                using (ScoringPerf.ScopeDetailed(ScoringPerf.TitleKey($"AnswerCheck.DistanceFieldStudent#{standardLayer.layerNum}", ScoringPerf.CurrentTitleId), $"targets={scoreStudentPixels.Count};query={shiftedStandardPixels.Count};roi={DescribeBounds(standardQueryBounds)};maxDistance={maxSearchDistance}"))
                 {
-                    studentDistanceField = DistanceField.Build(studentCandidatePixels, standardQueryBounds);
+                    studentDistanceField = DistanceField.Build(scoreStudentPixels, standardQueryBounds);
                 }
 
-                using (ScoringPerf.ScopeDetailed(ScoringPerf.TitleKey($"AnswerCheck.DistanceStandard#{standardLayer.layerNum}", ScoringPerf.CurrentTitleId), $"standard={shiftedStandardPixels.Count};studentCandidates={studentCandidatePixels.Count};maxDistance={maxSearchDistance};mode=distanceField;roi={DescribeBounds(standardQueryBounds)}"))
+                using (ScoringPerf.ScopeDetailed(ScoringPerf.TitleKey($"AnswerCheck.DistanceStandard#{standardLayer.layerNum}", ScoringPerf.CurrentTitleId), $"standard={shiftedStandardPixels.Count};studentCandidates={scoreStudentPixels.Count};maxDistance={maxSearchDistance};mode=distanceField;roi={DescribeBounds(standardQueryBounds)}"))
                 {
                     foreach (var point in shiftedStandardPixels)
                     {
@@ -2006,7 +2067,7 @@ namespace jxzt
             }
             else
             {
-                HashSet<long> studentSet = BuildPointSet(studentCandidatePixels);
+                HashSet<long> studentSet = BuildPointSet(scoreStudentPixels);
                 using (ScoringPerf.ScopeDetailed(ScoringPerf.TitleKey($"AnswerCheck.DistanceStandard#{standardLayer.layerNum}", ScoringPerf.CurrentTitleId), $"standard={shiftedStandardPixels.Count};studentSet={studentSet.Count};maxDistance={maxSearchDistance};mode=radiusScan"))
                 {
                     foreach (var point in shiftedStandardPixels)
@@ -2034,19 +2095,19 @@ namespace jxzt
 
             int matchedStudent = 0;
             List<PositionInt> extraStudentPixels = new List<PositionInt>();
-            PixelBounds studentQueryBounds = ExpandBounds(GetBounds(studentCandidatePixels), maxSearchDistance);
-            bool useDistanceFieldForStudent = ShouldUseDistanceField(studentCandidatePixels.Count, studentQueryBounds, maxSearchDistance);
+            PixelBounds studentQueryBounds = ExpandBounds(GetBounds(scoreStudentPixels), maxSearchDistance);
+            bool useDistanceFieldForStudent = ShouldUseDistanceField(scoreStudentPixels.Count, studentQueryBounds, maxSearchDistance);
             if (useDistanceFieldForStudent)
             {
                 DistanceField standardDistanceField = null;
-                using (ScoringPerf.ScopeDetailed(ScoringPerf.TitleKey($"AnswerCheck.DistanceFieldStandard#{standardLayer.layerNum}", ScoringPerf.CurrentTitleId), $"targets={shiftedStandardPixels.Count};query={studentCandidatePixels.Count};roi={DescribeBounds(studentQueryBounds)};maxDistance={maxSearchDistance}"))
+                using (ScoringPerf.ScopeDetailed(ScoringPerf.TitleKey($"AnswerCheck.DistanceFieldStandard#{standardLayer.layerNum}", ScoringPerf.CurrentTitleId), $"targets={shiftedStandardPixels.Count};query={scoreStudentPixels.Count};roi={DescribeBounds(studentQueryBounds)};maxDistance={maxSearchDistance}"))
                 {
                     standardDistanceField = DistanceField.Build(shiftedStandardPixels, studentQueryBounds);
                 }
 
-                using (ScoringPerf.ScopeDetailed(ScoringPerf.TitleKey($"AnswerCheck.DistanceStudent#{standardLayer.layerNum}", ScoringPerf.CurrentTitleId), $"studentCandidates={studentCandidatePixels.Count};standard={shiftedStandardPixels.Count};maxDistance={maxSearchDistance};mode=distanceField;roi={DescribeBounds(studentQueryBounds)}"))
+                using (ScoringPerf.ScopeDetailed(ScoringPerf.TitleKey($"AnswerCheck.DistanceStudent#{standardLayer.layerNum}", ScoringPerf.CurrentTitleId), $"studentCandidates={scoreStudentPixels.Count};standard={shiftedStandardPixels.Count};maxDistance={maxSearchDistance};mode=distanceField;roi={DescribeBounds(studentQueryBounds)}"))
                 {
-                    foreach (var point in studentCandidatePixels)
+                    foreach (var point in scoreStudentPixels)
                     {
                         if (standardDistanceField.TryGetDistanceSq(point, maxSearchDistanceSq, out int distanceSq) && distanceSq <= toleranceSq)
                         {
@@ -2062,9 +2123,9 @@ namespace jxzt
             else
             {
                 HashSet<long> standardSet = BuildPointSet(shiftedStandardPixels);
-                using (ScoringPerf.ScopeDetailed(ScoringPerf.TitleKey($"AnswerCheck.DistanceStudent#{standardLayer.layerNum}", ScoringPerf.CurrentTitleId), $"studentCandidates={studentCandidatePixels.Count};standardSet={standardSet.Count};maxDistance={maxSearchDistance};mode=radiusScan"))
+                using (ScoringPerf.ScopeDetailed(ScoringPerf.TitleKey($"AnswerCheck.DistanceStudent#{standardLayer.layerNum}", ScoringPerf.CurrentTitleId), $"studentCandidates={scoreStudentPixels.Count};standardSet={standardSet.Count};maxDistance={maxSearchDistance};mode=radiusScan"))
                 {
-                    foreach (var point in studentCandidatePixels)
+                    foreach (var point in scoreStudentPixels)
                     {
                         if (TryFindNearestDistance(standardSet, point, maxSearchDistance, out float distance) && distance <= result.Tolerance)
                         {
@@ -2079,18 +2140,20 @@ namespace jxzt
             }
 
             result.Recall = matchedStandard / (float)shiftedStandardPixels.Count;
-            result.Precision = matchedStudent / (float)studentCandidatePixels.Count;
+            result.Precision = matchedStudent / (float)scoreStudentPixels.Count;
             result.MissingRatio = 1f - result.Recall;
-            result.ExtraRatio = 1f - result.Precision;
+            result.ExtraRatio = evidence != null ? Mathf.Max(1f - result.Precision, evidence.TrueExtensionRatio) : 1f - result.Precision;
             result.P95Distance = Percentile(standardDistances, 0.95f);
-            result.StudentLineType = RecognizeLineTypeByProjection(studentCandidatePixels, mainAxis, standardLayer.lineType == linetype.实线, standardProjectedLength);
+            result.StudentLineType = RecognizeLineTypeByProjection(scoreStudentPixels, mainAxis, standardLayer.lineType == linetype.实线, standardProjectedLength);
 
-            float studentProjectedLength = GetProjectedLength(studentCandidatePixels, mainAxis);
+            float studentProjectedLength = evidence != null ? evidence.EvidenceProjectedLength : GetProjectedLength(spanStudentPixels, mainAxis);
             float lengthRatio = studentProjectedLength / standardProjectedLength;
             result.ProjectedLengthRatio = lengthRatio;
 
             result.MissingErrorPosition = missingStandardPixels.Count > 0 ? GetAveragePoint(missingStandardPixels) : GetAveragePoint(shiftedStandardPixels);
-            result.ExtraErrorPosition = extraStudentPixels.Count > 0 ? GetAveragePoint(extraStudentPixels) : GetAveragePoint(studentCandidatePixels);
+            result.ExtraErrorPosition = evidence != null && evidence.ExtensionPixels.Count > 0
+                ? GetAveragePoint(evidence.ExtensionPixels)
+                : (extraStudentPixels.Count > 0 ? GetAveragePoint(extraStudentPixels) : GetAveragePoint(scoreStudentPixels));
             result.ErrorPosition = result.Recall < result.ErrorLimit
                 ? GetAveragePoint(shiftedStandardPixels)
                 : (result.ExtraRatio > result.MissingRatio ? result.ExtraErrorPosition : result.MissingErrorPosition);
@@ -2105,9 +2168,20 @@ namespace jxzt
                                 && (result.MissingRatio >= shortMissingLimit || lengthRatio < shortLengthRatioLimit)
                                 && result.ExtraRatio < shortExtraRatioLimit;
 
-            result.IsTooLong = result.Recall >= result.RightLimit
-                               && (result.ExtraRatio > 0.42f || lengthRatio > 1.18f)
-                               && result.Precision < 0.86f;
+            if (evidence != null)
+            {
+                float trueExtensionLongLimit = GetTrueExtensionLongLimit(standardProjectedLength, result.Tolerance);
+                result.IsTooLong = result.Recall >= result.RightLimit
+                                   && evidence.ExtensionPixels.Count > 0
+                                   && evidence.TrueExtensionRatio > trueExtensionLongLimit
+                                   && lengthRatio > 1.08f;
+            }
+            else
+            {
+                result.IsTooLong = result.Recall >= result.RightLimit
+                                   && (result.ExtraRatio > 0.42f || lengthRatio > 1.18f)
+                                   && result.Precision < 0.86f;
+            }
 
             return result;
         }
@@ -2195,10 +2269,10 @@ namespace jxzt
                 : ErrorReson.图线不在或偏离正确位置;
         }
 
-        private LineMatchResult EvaluatePatternedLineMatch(LineMatchResult result, List<PositionInt> shiftedStandardPixels, List<PositionInt> studentCandidatePixels, Vector2 axis, float standardProjectedLength)
+        private LineMatchResult EvaluatePatternedLineMatch(LineMatchResult result, List<PositionInt> shiftedStandardPixels, List<PositionInt> studentEvidencePixels, Vector2 axis, float standardProjectedLength, LineStudentEvidence evidence)
         {
             ProjectionStats standardStats = GetProjectionStats(shiftedStandardPixels, axis);
-            ProjectionStats studentStats = GetProjectionStats(studentCandidatePixels, axis);
+            ProjectionStats studentStats = GetProjectionStats(studentEvidencePixels, axis);
             float standardLength = Mathf.Max(1f, Mathf.Max(standardStats.Length, standardProjectedLength));
             float endpointLimit = GetPatternEndpointLimit(standardLength, result.Tolerance);
             float bandWidth = result.Tolerance * 2.2f;
@@ -2209,10 +2283,10 @@ namespace jxzt
             float macroBinWidth = standardLength / macroBinCount;
 
             int inGuideCount = 0;
-            List<float> guideDistances = new List<float>(studentCandidatePixels.Count);
+            List<float> guideDistances = new List<float>(studentEvidencePixels.Count);
             List<PositionInt> extraStudentPixels = new List<PositionInt>();
 
-            foreach (var point in studentCandidatePixels)
+            foreach (var point in studentEvidencePixels)
             {
                 Vector2 p = new Vector2(point.x, point.y);
                 float projection = Vector2.Dot(p, axis);
@@ -2248,35 +2322,38 @@ namespace jxzt
 
             float missingStart = Mathf.Max(0f, studentStats.Min - standardStats.Min);
             float missingEnd = Mathf.Max(0f, standardStats.Max - studentStats.Max);
-            float extraSpan = Mathf.Max(0f, standardStats.Min - studentStats.Min) + Mathf.Max(0f, studentStats.Max - standardStats.Max);
+            float trueExtensionRatio = evidence != null ? evidence.TrueExtensionRatio : 0f;
 
             result.IsPatternedMode = true;
-            result.StudentLineType = RecognizeLineTypeByProjection(studentCandidatePixels, axis);
-            result.GeometryPrecision = inGuideCount / (float)studentCandidatePixels.Count;
+            result.StudentLineType = RecognizeLineTypeByProjection(studentEvidencePixels, axis);
+            result.GeometryPrecision = studentEvidencePixels.Count == 0 ? 0f : inGuideCount / (float)studentEvidencePixels.Count;
             result.MacroCoverage = coveredBins / (float)macroBinCount;
             result.MacroCoverageLimit = GetPatternMacroCoverageLimit(standardLength);
             result.PatternLengthRatio = studentStats.Length / standardLength;
             result.PatternEndpointMiss = Mathf.Max(missingStart, missingEnd);
             result.PatternEndpointLimit = endpointLimit;
-            result.PatternExtraSpanRatio = extraSpan / standardLength;
+            result.PatternExtraSpanRatio = trueExtensionRatio;
             result.Recall = result.MacroCoverage;
             result.Precision = result.GeometryPrecision;
             result.MissingRatio = 1f - result.MacroCoverage;
-            result.ExtraRatio = Mathf.Max(1f - result.GeometryPrecision, result.PatternExtraSpanRatio);
+            result.ExtraRatio = Mathf.Max(1f - result.GeometryPrecision, trueExtensionRatio);
             result.P95Distance = Percentile(guideDistances, 0.95f);
             result.MissingErrorPosition = missingStart >= missingEnd
                 ? GetProjectionEdgePoint(shiftedStandardPixels, axis, standardStats.Min)
                 : GetProjectionEdgePoint(shiftedStandardPixels, axis, standardStats.Max);
-            result.ExtraErrorPosition = extraStudentPixels.Count > 0 ? GetAveragePoint(extraStudentPixels) : GetAveragePoint(studentCandidatePixels);
+            result.ExtraErrorPosition = evidence != null && evidence.ExtensionPixels.Count > 0
+                ? GetAveragePoint(evidence.ExtensionPixels)
+                : (extraStudentPixels.Count > 0 ? GetAveragePoint(extraStudentPixels) : GetAveragePoint(studentEvidencePixels));
             result.IsTooShort = result.GeometryPrecision >= PatternGeometryLimit
                                 && (result.MacroCoverage < result.MacroCoverageLimit
                                     || result.PatternLengthRatio < PatternMinLengthRatio
                                     || result.PatternEndpointMiss > endpointLimit)
                                 && result.PatternExtraSpanRatio <= PatternMaxExtraSpanRatio * 1.5f;
             result.IsTooLong = result.GeometryPrecision >= PatternGeometryLimit
+                               && evidence != null
+                               && evidence.ExtensionPixels.Count > 0
                                && (result.PatternLengthRatio > PatternMaxLengthRatio
-                                   || result.PatternExtraSpanRatio > PatternMaxExtraSpanRatio
-                                   || result.ExtraRatio > 0.45f);
+                                   || result.PatternExtraSpanRatio > PatternMaxExtraSpanRatio);
             result.ErrorPosition = result.GeometryPrecision < PatternGeometryLimit
                 ? result.ExtraErrorPosition
                 : (result.IsTooLong ? result.ExtraErrorPosition : result.MissingErrorPosition);
@@ -2306,6 +2383,177 @@ namespace jxzt
                 Max = max,
                 Length = Mathf.Max(0f, max - min)
             };
+        }
+
+        private LineStudentEvidence BuildLineStudentEvidence(List<PositionInt> studentCandidatePixels, List<PositionInt> shiftedStandardPixels, Vector2 axis, float tolerance, bool allowFragmentedCore)
+        {
+            LineStudentEvidence evidence = new LineStudentEvidence
+            {
+                RawCandidateCount = studentCandidatePixels == null ? 0 : studentCandidatePixels.Count
+            };
+
+            if (studentCandidatePixels == null || studentCandidatePixels.Count == 0
+                || shiftedStandardPixels == null || shiftedStandardPixels.Count == 0)
+            {
+                return evidence;
+            }
+
+            axis = axis.sqrMagnitude > 0.0001f ? axis.normalized : Vector2.right;
+            ProjectionStats standardStats = GetProjectionStats(shiftedStandardPixels, axis);
+            float standardLength = Mathf.Max(1f, standardStats.Length);
+            Vector2 center = GetAveragePoint(shiftedStandardPixels);
+            Vector2 normal = new Vector2(-axis.y, axis.x).normalized;
+            float bandWidth = Mathf.Max(1f, tolerance * 1.6f);
+            float endpointSlack = Mathf.Clamp(Mathf.Max(tolerance * 1.4f, standardLength * 0.035f), 3f, 18f);
+            float extensionSearchSlack = Mathf.Clamp(Mathf.Max(tolerance * 6f, standardLength * 0.25f), 12f, 96f);
+            float minAlignedCoreSpan = Mathf.Min(standardLength * 0.18f, Mathf.Max(tolerance * 6f, 24f));
+
+            HashSet<long> coreKeys = new HashSet<long>();
+            HashSet<long> extensionKeys = new HashSet<long>();
+            List<List<PositionInt>> components = SplitConnectedComponents(studentCandidatePixels);
+            foreach (var component in components)
+            {
+                List<PositionInt> coreCandidates = new List<PositionInt>();
+                List<PositionInt> extensionCandidates = new List<PositionInt>();
+
+                foreach (var point in component)
+                {
+                    Vector2 p = new Vector2(point.x, point.y);
+                    float projection = Vector2.Dot(p, axis);
+                    float perpendicularDistance = Mathf.Abs(Vector2.Dot(p - center, normal));
+                    if (perpendicularDistance > bandWidth)
+                    {
+                        continue;
+                    }
+
+                    bool inCoreSpan = projection >= standardStats.Min - endpointSlack
+                                      && projection <= standardStats.Max + endpointSlack;
+                    if (inCoreSpan)
+                    {
+                        coreCandidates.Add(point);
+                        continue;
+                    }
+
+                    bool inExtensionSpan = (projection < standardStats.Min - endpointSlack && projection >= standardStats.Min - extensionSearchSlack)
+                                           || (projection > standardStats.Max + endpointSlack && projection <= standardStats.Max + extensionSearchSlack);
+                    if (inExtensionSpan)
+                    {
+                        extensionCandidates.Add(point);
+                    }
+                }
+
+                if (coreCandidates.Count == 0 && extensionCandidates.Count == 0)
+                {
+                    continue;
+                }
+
+                bool alignedWithStandard = IsComponentAlignedWithAxis(component, axis, tolerance);
+                float coreSpan = GetProjectedLength(coreCandidates, axis);
+                bool keepCore = coreCandidates.Count > 0
+                                && (alignedWithStandard
+                                    || coreSpan >= minAlignedCoreSpan
+                                    || (allowFragmentedCore && coreCandidates.Count >= 2));
+
+                if (!keepCore)
+                {
+                    continue;
+                }
+
+                AddUniquePixels(coreCandidates, evidence.CorePixels, coreKeys);
+
+                // 只有与核心证据同组件且方向一致的端点外像素，才视为真实过长。
+                if (alignedWithStandard && extensionCandidates.Count > 0)
+                {
+                    AddUniquePixels(extensionCandidates, evidence.ExtensionPixels, extensionKeys);
+                }
+            }
+
+            foreach (var point in studentCandidatePixels)
+            {
+                long key = PointKey(point.x, point.y);
+                if (!coreKeys.Contains(key) && !extensionKeys.Contains(key))
+                {
+                    evidence.IgnoredAuxiliaryPixels.Add(point);
+                }
+            }
+
+            List<PositionInt> evidenceSpanPixels = evidence.GetCoreAndExtensionPixels();
+            if (evidenceSpanPixels.Count > 0)
+            {
+                ProjectionStats evidenceStats = GetProjectionStats(evidenceSpanPixels, axis);
+                evidence.EvidenceProjectedLength = evidenceStats.Length;
+                if (evidence.ExtensionPixels.Count > 0)
+                {
+                    float extraSpan = Mathf.Max(0f, standardStats.Min - evidenceStats.Min)
+                                      + Mathf.Max(0f, evidenceStats.Max - standardStats.Max);
+                    evidence.TrueExtensionRatio = extraSpan / standardLength;
+                }
+            }
+
+            return evidence;
+        }
+
+        private bool IsComponentAlignedWithAxis(List<PositionInt> component, Vector2 axis, float tolerance)
+        {
+            if (component == null || component.Count < 2)
+            {
+                return false;
+            }
+
+            axis = axis.sqrMagnitude > 0.0001f ? axis.normalized : Vector2.right;
+            Vector2 componentAxis = GetPrincipalAxis(component);
+            float axisDot = Mathf.Abs(Vector2.Dot(componentAxis.normalized, axis));
+            if (axisDot >= 0.88f)
+            {
+                return true;
+            }
+
+            ProjectionStats projectionStats = GetProjectionStats(component, axis);
+            float normalSpan = GetNormalSpan(component, axis);
+            return projectionStats.Length >= Mathf.Max(tolerance * 3f, normalSpan * 2.6f);
+        }
+
+        private float GetNormalSpan(List<PositionInt> pixels, Vector2 axis)
+        {
+            if (pixels == null || pixels.Count == 0)
+            {
+                return 0f;
+            }
+
+            Vector2 normal = new Vector2(-axis.y, axis.x).normalized;
+            float min = Vector2.Dot(new Vector2(pixels[0].x, pixels[0].y), normal);
+            float max = min;
+            foreach (var point in pixels)
+            {
+                float projection = Vector2.Dot(new Vector2(point.x, point.y), normal);
+                if (projection < min) min = projection;
+                if (projection > max) max = projection;
+            }
+
+            return Mathf.Max(0f, max - min);
+        }
+
+        private void AddUniquePixels(List<PositionInt> src, List<PositionInt> dst, HashSet<long> seen)
+        {
+            if (src == null || dst == null || seen == null)
+            {
+                return;
+            }
+
+            foreach (var point in src)
+            {
+                long key = PointKey(point.x, point.y);
+                if (seen.Add(key))
+                {
+                    dst.Add(point);
+                }
+            }
+        }
+
+        private float GetTrueExtensionLongLimit(float standardProjectedLength, float tolerance)
+        {
+            float length = Mathf.Max(1f, standardProjectedLength);
+            return Mathf.Clamp(Mathf.Max(0.16f, tolerance * 4f / length), 0.16f, 0.28f);
         }
 
         private float GetPatternEndpointLimit(float standardLength, float tolerance)
