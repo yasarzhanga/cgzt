@@ -1,0 +1,79 @@
+# Code-only Git tracking for this Unity project.
+# Everything is ignored by default, then source/config files are re-included.
+*
+!*/
+
+# Generated/editor-local folders.
+Library/
+Temp/
+Logs/
+Builds/
+UserSettings/
+obj/
+bin/
+.vs/
+.idea/
+.vscode/
+
+# Runtime data and generated student/teacher answer files.
+Assets/StreamingAssets/
+Assets/save/
+
+# Heavy archives, binaries, models, and art assets stay out of code-only Git.
+*.zip
+*.7z
+*.rar
+*.onnx
+*.dll
+*.png
+*.jpg
+*.jpeg
+*.psd
+*.ttf
+*.ttc
+*.ico
+*.mp4
+*.wav
+*.mp3
+*.bytes
+*.wlt
+
+# Unity/IDE generated project files.
+*.csproj
+*.sln
+*.user
+*.tmp
+*.pidb
+*.booproj
+*.svd
+*.pdb
+*.mdb
+
+# Repository management files.
+!.gitignore
+!.gitattributes
+!README_GIT.md
+
+# Source files and their Unity meta files.
+!Assets/**/*.cs
+!Assets/**/*.cs.meta
+!Assets/**/*.asmdef
+!Assets/**/*.asmdef.meta
+!Assets/**/*.asmref
+!Assets/**/*.asmref.meta
+!Assets/**/*.shader
+!Assets/**/*.shader.meta
+!Assets/**/*.hlsl
+!Assets/**/*.hlsl.meta
+!Assets/**/*.compute
+!Assets/**/*.compute.meta
+!Assets/**/*.cginc
+!Assets/**/*.cginc.meta
+!Assets/**/*.inputactions
+!Assets/**/*.inputactions.meta
+
+# Package/project configuration needed for reproducible code work.
+!Packages/manifest.json
+!Packages/packages-lock.json
+!ProjectSettings/*.asset
+!ProjectSettings/*.json

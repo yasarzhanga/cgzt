@@ -1,0 +1,23 @@
+* text=auto
+
+*.cs text diff=csharp
+*.shader text
+*.hlsl text
+*.compute text
+*.cginc text
+*.json text eol=lf
+*.asset text
+*.meta text
+*.inputactions text
+
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.psd binary
+*.ttf binary
+*.ttc binary
+*.ico binary
+*.onnx binary
+*.dll binary
+*.zip binary
+*.7z binary
