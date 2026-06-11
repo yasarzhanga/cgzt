@@ -97,6 +97,10 @@ namespace jxzt
         private const float PatternMinLengthRatio = 0.78f;
         private const float PatternMaxLengthRatio = 1.18f;
         private const float PatternMaxExtraSpanRatio = 0.18f;
+        private const string PrefilterModeGpu = "GPU";
+        private const string PrefilterModeCpuRoi = "CPU_ROI";
+        private const string PrefilterModeFullCpu = "FULL_CPU";
+        private const string LineEvidencePrefilterShaderPath = "Assets/Shaders/LineEvidencePrefilter.compute";
 
 
         private void Start() {
@@ -555,7 +559,7 @@ namespace jxzt
                 layer.lineType = lineMatch.StudentLineType;
                 standardlayer.displayError_position = lineMatch.ErrorPosition;
 
-                string lineMatchDetail = $"recall={lineMatch.Recall:F3};precision={lineMatch.Precision:F3};missing={lineMatch.MissingRatio:F3};extra={lineMatch.ExtraRatio:F3};p95={lineMatch.P95Distance:F1};bestOffset={lineMatch.BestOffset};studentLineType={lineMatch.StudentLineType};standardLineType={standardlayer.lineType};patterned={lineMatch.IsPatternedMode};geometry={lineMatch.GeometryPrecision:F3};macro={lineMatch.MacroCoverage:F3};macroLimit={lineMatch.MacroCoverageLimit:F3};span={lineMatch.PatternLengthRatio:F3};endpointMiss={lineMatch.PatternEndpointMiss:F1};endpointLimit={lineMatch.PatternEndpointLimit:F1};extraSpan={lineMatch.PatternExtraSpanRatio:F3};lengthRatio={lineMatch.ProjectedLengthRatio:F3};rawCandidates={lineMatch.RawCandidateCount};corePixels={lineMatch.CorePixelCount};ignoredAuxiliary={lineMatch.IgnoredAuxiliaryPixelCount};extensionPixels={lineMatch.ExtensionPixelCount};trueExtensionRatio={lineMatch.TrueExtensionRatio:F3};scoringStrictness={scoringStrictness};gpuPrefilterEnabled={lineMatch.GpuPrefilterEnabled};gpuPrefilterUsed={lineMatch.GpuPrefilterUsed};gpuPrefilterFallbackReason={lineMatch.GpuPrefilterFallbackReason};roiPixels={lineMatch.GpuRoiPixels};gpuRawOpaqueInRoi={lineMatch.GpuRawOpaqueInRoi};nearCandidates={lineMatch.GpuNearCandidates};ignoredOpaque={lineMatch.GpuIgnoredOpaque};overflow={lineMatch.GpuOverflow}";
+                string lineMatchDetail = $"recall={lineMatch.Recall:F3};precision={lineMatch.Precision:F3};missing={lineMatch.MissingRatio:F3};extra={lineMatch.ExtraRatio:F3};p95={lineMatch.P95Distance:F1};bestOffset={lineMatch.BestOffset};studentLineType={lineMatch.StudentLineType};standardLineType={standardlayer.lineType};patterned={lineMatch.IsPatternedMode};geometry={lineMatch.GeometryPrecision:F3};macro={lineMatch.MacroCoverage:F3};macroLimit={lineMatch.MacroCoverageLimit:F3};span={lineMatch.PatternLengthRatio:F3};endpointMiss={lineMatch.PatternEndpointMiss:F1};endpointLimit={lineMatch.PatternEndpointLimit:F1};extraSpan={lineMatch.PatternExtraSpanRatio:F3};lengthRatio={lineMatch.ProjectedLengthRatio:F3};rawCandidates={lineMatch.RawCandidateCount};corePixels={lineMatch.CorePixelCount};ignoredAuxiliary={lineMatch.IgnoredAuxiliaryPixelCount};extensionPixels={lineMatch.ExtensionPixelCount};trueExtensionRatio={lineMatch.TrueExtensionRatio:F3};scoringStrictness={scoringStrictness};prefilterMode={lineMatch.PrefilterMode};fullCpuFallbackUsed={lineMatch.FullCpuFallbackUsed};fallbackReason={lineMatch.PrefilterFallbackReason};gpuPrefilterEnabled={lineMatch.GpuPrefilterEnabled};gpuPrefilterUsed={lineMatch.GpuPrefilterUsed};gpuPrefilterFallbackReason={lineMatch.GpuPrefilterFallbackReason};roiPixels={lineMatch.GpuRoiPixels};rawOpaqueInRoi={lineMatch.GpuRawOpaqueInRoi};nearCandidates={lineMatch.GpuNearCandidates};ignoredOpaque={lineMatch.GpuIgnoredOpaque};overflow={lineMatch.GpuOverflow}";
                 ScoringPerf.LayerMatchMetric(standardlayer.layerNum, lineMatchDetail);
                 if (ScoringPerf.VerboseLayerLogs)
                 {
@@ -1051,6 +1055,9 @@ namespace jxzt
             public int GpuNearCandidates;
             public int GpuIgnoredOpaque;
             public bool GpuOverflow;
+            public string PrefilterMode;
+            public bool FullCpuFallbackUsed;
+            public string PrefilterFallbackReason;
         }
 
         private struct ProjectionStats
@@ -1132,6 +1139,8 @@ namespace jxzt
             public int GpuIgnoredOpaque;
             public bool GpuOverflow;
             public string GpuFallbackReason;
+            public string PrefilterMode;
+            public bool FullCpuFallbackUsed;
         }
 
         private sealed class LayerPixelCache
@@ -1657,24 +1666,25 @@ namespace jxzt
 
         private Dictionary<int, PolylineSegmentResult> EvaluatePolylineGroup(PolylineGroup group)
         {
-            string gpuFallbackReason = string.Empty;
-            LayerManager firstLayer = group != null && group.Segments != null && group.Segments.Count > 0 ? group.Segments[0].Layer : null;
-            if (CanTryGpuLineEvidencePrefilter(studentlayer_manager, firstLayer, out gpuFallbackReason)
-                && TryEvaluatePolylineGroupWithGpuPrefilter(group, out Dictionary<int, PolylineSegmentResult> gpuResults, out gpuFallbackReason))
+            string prefilterFallbackReason = useGpuLineEvidencePrefilter ? string.Empty : "GPU/ROI预筛已关闭";
+            if (useGpuLineEvidencePrefilter
+                && TryEvaluatePolylineGroupWithSourcePrefilter(group, out Dictionary<int, PolylineSegmentResult> prefilterResults, out prefilterFallbackReason))
             {
-                return gpuResults;
+                return prefilterResults;
             }
 
             if (useGpuLineEvidencePrefilter)
             {
-                LogGpuPrefilterFallbackOnce($"polylineGroup#{group?.GroupId}", gpuFallbackReason);
+                LogGpuPrefilterFallbackOnce($"polylineGroup#{group?.GroupId}", prefilterFallbackReason);
             }
 
             Dictionary<int, PolylineSegmentResult> cpuResults = EvaluatePolylineGroupCpuFallback(group);
             foreach (var result in cpuResults.Values)
             {
                 result.GpuPrefilterUsed = false;
-                result.GpuFallbackReason = gpuFallbackReason ?? string.Empty;
+                result.GpuFallbackReason = prefilterFallbackReason ?? string.Empty;
+                result.PrefilterMode = PrefilterModeFullCpu;
+                result.FullCpuFallbackUsed = true;
             }
             return cpuResults;
         }
@@ -1831,27 +1841,31 @@ namespace jxzt
                     AssignedCoreCount = assignedPixels[i].Count,
                     IgnoredAuxiliaryCount = segmentEvidence[i]?.GetIgnoredAuxiliaryCount() ?? 0,
                     ExtensionPixelCount = extensionPixels[i].Count,
-                    TrueExtensionRatio = trueExtensionRatio
+                    TrueExtensionRatio = trueExtensionRatio,
+                    GpuPrefilterUsed = false,
+                    GpuFallbackReason = "FULL_CPU fallback",
+                    PrefilterMode = PrefilterModeFullCpu,
+                    FullCpuFallbackUsed = true
                 };
             }
 
             if (ScoringPerf.VerboseLayerLogs)
             {
-                string detail = string.Join("; ", segmentResults.Select(kv => $"#{kv.Key}:{kv.Value.Error},rawCandidates={kv.Value.RawCandidateCount},assignedCore={kv.Value.AssignedCoreCount},ignoredAuxiliary={kv.Value.IgnoredAuxiliaryCount},extensionPixels={kv.Value.ExtensionPixelCount},trueExtensionRatio={kv.Value.TrueExtensionRatio:F3},coverage={kv.Value.Coverage:F2},lengthRatio={kv.Value.LengthRatio:F2},studentType={kv.Value.StudentLineType}"));
-                Debug.Log($"[AnswerCheck] 折线组判分 group={group.GroupId}, scoringStrictness={scoringStrictness}, precision={groupPrecision:F3}, extra={groupExtraRatio:F3}, offset={bestOffset}, {detail}");
+                string detail = string.Join("; ", segmentResults.Select(kv => $"#{kv.Key}:{kv.Value.Error},rawCandidates={kv.Value.RawCandidateCount},assignedCore={kv.Value.AssignedCoreCount},ignoredAuxiliary={kv.Value.IgnoredAuxiliaryCount},extensionPixels={kv.Value.ExtensionPixelCount},trueExtensionRatio={kv.Value.TrueExtensionRatio:F3},coverage={kv.Value.Coverage:F2},lengthRatio={kv.Value.LengthRatio:F2},studentType={kv.Value.StudentLineType},prefilterMode={kv.Value.PrefilterMode},fullCpuFallbackUsed={kv.Value.FullCpuFallbackUsed},fallbackReason={kv.Value.GpuFallbackReason},roiPixels={kv.Value.GpuRoiPixels},rawOpaqueInRoi={kv.Value.GpuRawOpaqueInRoi},nearCandidates={kv.Value.GpuNearCandidates},ignoredOpaque={kv.Value.GpuIgnoredOpaque},overflow={kv.Value.GpuOverflow}"));
+                Debug.Log($"[AnswerCheck] 折线组判分 group={group.GroupId}, scoringStrictness={scoringStrictness}, prefilterMode={PrefilterModeFullCpu}, precision={groupPrecision:F3}, extra={groupExtraRatio:F3}, offset={bestOffset}, {detail}");
             }
 
             return segmentResults;
         }
 
-        private bool TryEvaluatePolylineGroupWithGpuPrefilter(PolylineGroup group, out Dictionary<int, PolylineSegmentResult> segmentResults, out string failReason)
+        private bool TryEvaluatePolylineGroupWithSourcePrefilter(PolylineGroup group, out Dictionary<int, PolylineSegmentResult> segmentResults, out string failReason)
         {
             segmentResults = CreateDefaultPolylineResults(group, ErrorReson.图线不在或偏离正确位置);
             failReason = string.Empty;
             if (group == null || group.Segments == null || group.Segments.Count == 0 || group.StandardPixels == null || group.StandardPixels.Count == 0)
             {
                 failReason = "折线组为空";
-                return false;
+                return true;
             }
 
             LayerManager firstLayer = group.Segments[0].Layer;
@@ -1869,6 +1883,9 @@ namespace jxzt
             List<PositionInt>[] shiftedSegmentPixels = new List<PositionInt>[segmentCount];
             LineStudentEvidence[] segmentEvidence = new LineStudentEvidence[segmentCount];
             GpuLineEvidenceCounters[] segmentGpuCounters = new GpuLineEvidenceCounters[segmentCount];
+            string[] segmentPrefilterModes = new string[segmentCount];
+            bool[] segmentFullCpuFallbackUsed = new bool[segmentCount];
+            string[] segmentFallbackReasons = new string[segmentCount];
 
             for (int i = 0; i < segmentCount; i++)
             {
@@ -1888,13 +1905,15 @@ namespace jxzt
                 if (shiftedSegmentPixels[i] == null || shiftedSegmentPixels[i].Count == 0)
                 {
                     segmentEvidence[i] = BuildLineStudentEvidence(null, shiftedSegmentPixels[i], axis[i], group.Tolerance, IsPatternedLineType(segment.Layer.lineType));
+                    segmentPrefilterModes[i] = PrefilterModeCpuRoi;
+                    segmentFallbackReasons[i] = "折线段标准像素为空";
                     continue;
                 }
 
                 GetLinePrefilterParameters(shiftedSegmentPixels[i], axis[i], group.Tolerance, out Vector2 center, out ProjectionStats standardStats, out float bandWidth, out float endpointSlack, out float extensionSearchSlack);
                 int candidateExpand = Mathf.CeilToInt(group.Tolerance * 8f + length[i] * 0.25f);
                 PixelBounds candidateBounds = ExpandBounds(GetBounds(shiftedSegmentPixels[i]), candidateExpand);
-                if (!TryGpuPrefilterLineCandidates(
+                if (!TryPrefilterLineCandidatesFromSourceWithFallback(
                         studentlayer_manager,
                         candidateBounds,
                         axis[i],
@@ -1907,12 +1926,26 @@ namespace jxzt
                         $"polylineGroup#{group.GroupId}/segment#{segment.Layer.layerNum}",
                         out List<PositionInt> nearLineCandidatePixels,
                         out GpuLineEvidenceCounters counters,
+                        out string prefilterMode,
                         out failReason))
                 {
+                    segmentGpuCounters[i] = counters;
+                    segmentPrefilterModes[i] = string.IsNullOrEmpty(prefilterMode) ? PrefilterModeCpuRoi : prefilterMode;
+                    segmentFallbackReasons[i] = failReason;
+                    if (counters.Overflow)
+                    {
+                        segmentEvidence[i] = BuildLineStudentEvidence(null, shiftedSegmentPixels[i], axis[i], group.Tolerance, IsPatternedLineType(segment.Layer.lineType));
+                        assignedPixels[i] = segmentEvidence[i].CorePixels;
+                        extensionPixels[i] = segmentEvidence[i].ExtensionPixels;
+                        continue;
+                    }
+
                     return false;
                 }
 
                 segmentGpuCounters[i] = counters;
+                segmentPrefilterModes[i] = prefilterMode;
+                segmentFallbackReasons[i] = failReason;
                 List<PositionInt> segmentCandidates = nearLineCandidatePixels.Count > 0
                     ? GetPolylineSegmentCandidatePixels(nearLineCandidatePixels, p0[i], p1[i], axis[i], length[i], group.Tolerance)
                     : nearLineCandidatePixels;
@@ -1921,7 +1954,22 @@ namespace jxzt
                 extensionPixels[i] = segmentEvidence[i].ExtensionPixels;
             }
 
-            segmentResults = BuildPolylineSegmentResults(group, bestOffset, p0, axis, length, assignedPixels, extensionPixels, shiftedSegmentPixels, segmentEvidence, segmentGpuCounters, true, string.Empty);
+            segmentResults = BuildPolylineSegmentResults(
+                group,
+                bestOffset,
+                p0,
+                axis,
+                length,
+                assignedPixels,
+                extensionPixels,
+                shiftedSegmentPixels,
+                segmentEvidence,
+                segmentGpuCounters,
+                segmentPrefilterModes,
+                segmentFullCpuFallbackUsed,
+                segmentFallbackReasons,
+                "MIXED",
+                string.Empty);
             return true;
         }
 
@@ -1936,8 +1984,11 @@ namespace jxzt
             List<PositionInt>[] shiftedSegmentPixels,
             LineStudentEvidence[] segmentEvidence,
             GpuLineEvidenceCounters[] segmentGpuCounters,
-            bool gpuPrefilterUsed,
-            string gpuFallbackReason)
+            string[] segmentPrefilterModes,
+            bool[] segmentFullCpuFallbackUsed,
+            string[] segmentFallbackReasons,
+            string groupPrefilterMode,
+            string groupFallbackReason)
         {
             int segmentCount = group.Segments.Count;
             List<PositionInt> groupCorePixels = new List<PositionInt>();
@@ -2018,6 +2069,13 @@ namespace jxzt
                 }
 
                 GpuLineEvidenceCounters gpuCounters = segmentGpuCounters != null ? segmentGpuCounters[i] : new GpuLineEvidenceCounters();
+                string segmentPrefilterMode = segmentPrefilterModes != null && !string.IsNullOrEmpty(segmentPrefilterModes[i])
+                    ? segmentPrefilterModes[i]
+                    : groupPrefilterMode;
+                bool fullCpuFallbackUsed = segmentFullCpuFallbackUsed != null && segmentFullCpuFallbackUsed[i];
+                string segmentFallbackReason = segmentFallbackReasons != null && !string.IsNullOrEmpty(segmentFallbackReasons[i])
+                    ? segmentFallbackReasons[i]
+                    : groupFallbackReason;
                 results[segment.Layer.layerNum] = new PolylineSegmentResult
                 {
                     Error = error,
@@ -2031,20 +2089,22 @@ namespace jxzt
                     IgnoredAuxiliaryCount = segmentEvidence[i]?.GetIgnoredAuxiliaryCount() ?? 0,
                     ExtensionPixelCount = extensionPixels[i].Count,
                     TrueExtensionRatio = trueExtensionRatio,
-                    GpuPrefilterUsed = gpuPrefilterUsed,
+                    GpuPrefilterUsed = segmentPrefilterMode == PrefilterModeGpu,
                     GpuRoiPixels = gpuCounters.RoiPixelCount,
                     GpuRawOpaqueInRoi = gpuCounters.RawOpaqueInRoiCount,
                     GpuNearCandidates = gpuCounters.NearLineCandidateCount,
                     GpuIgnoredOpaque = gpuCounters.IgnoredOpaqueCount,
                     GpuOverflow = gpuCounters.Overflow,
-                    GpuFallbackReason = gpuFallbackReason ?? string.Empty
+                    GpuFallbackReason = segmentFallbackReason ?? string.Empty,
+                    PrefilterMode = segmentPrefilterMode,
+                    FullCpuFallbackUsed = fullCpuFallbackUsed
                 };
             }
 
             if (ScoringPerf.VerboseLayerLogs)
             {
-                string detail = string.Join("; ", results.Select(kv => $"#{kv.Key}:{kv.Value.Error},rawCandidates={kv.Value.RawCandidateCount},assignedCore={kv.Value.AssignedCoreCount},ignoredAuxiliary={kv.Value.IgnoredAuxiliaryCount},extensionPixels={kv.Value.ExtensionPixelCount},trueExtensionRatio={kv.Value.TrueExtensionRatio:F3},coverage={kv.Value.Coverage:F2},lengthRatio={kv.Value.LengthRatio:F2},studentType={kv.Value.StudentLineType},gpuPrefilter={kv.Value.GpuPrefilterUsed},roiPixels={kv.Value.GpuRoiPixels},nearCandidates={kv.Value.GpuNearCandidates},ignoredOpaque={kv.Value.GpuIgnoredOpaque},overflow={kv.Value.GpuOverflow}"));
-                Debug.Log($"[AnswerCheck] 折线组判分 group={group.GroupId}, scoringStrictness={scoringStrictness}, gpuPrefilter={gpuPrefilterUsed}, precision={groupPrecision:F3}, extra={groupExtraRatio:F3}, offset={bestOffset}, {detail}");
+                string detail = string.Join("; ", results.Select(kv => $"#{kv.Key}:{kv.Value.Error},rawCandidates={kv.Value.RawCandidateCount},assignedCore={kv.Value.AssignedCoreCount},ignoredAuxiliary={kv.Value.IgnoredAuxiliaryCount},extensionPixels={kv.Value.ExtensionPixelCount},trueExtensionRatio={kv.Value.TrueExtensionRatio:F3},coverage={kv.Value.Coverage:F2},lengthRatio={kv.Value.LengthRatio:F2},studentType={kv.Value.StudentLineType},prefilterMode={kv.Value.PrefilterMode},fullCpuFallbackUsed={kv.Value.FullCpuFallbackUsed},fallbackReason={kv.Value.GpuFallbackReason},roiPixels={kv.Value.GpuRoiPixels},rawOpaqueInRoi={kv.Value.GpuRawOpaqueInRoi},nearCandidates={kv.Value.GpuNearCandidates},ignoredOpaque={kv.Value.GpuIgnoredOpaque},overflow={kv.Value.GpuOverflow}"));
+                Debug.Log($"[AnswerCheck] 折线组判分 group={group.GroupId}, scoringStrictness={scoringStrictness}, prefilterMode={groupPrefilterMode}, precision={groupPrecision:F3}, extra={groupExtraRatio:F3}, offset={bestOffset}, {detail}");
             }
 
             return results;
@@ -2073,7 +2133,11 @@ namespace jxzt
                     AssignedCoreCount = 0,
                     IgnoredAuxiliaryCount = 0,
                     ExtensionPixelCount = 0,
-                    TrueExtensionRatio = 0f
+                    TrueExtensionRatio = 0f,
+                    GpuPrefilterUsed = false,
+                    GpuFallbackReason = string.Empty,
+                    PrefilterMode = string.Empty,
+                    FullCpuFallbackUsed = false
                 };
             }
 
@@ -2249,26 +2313,29 @@ namespace jxzt
 
         private LineMatchResult EvaluateLineMatch(LayerManager studentLayer, LayerManager standardLayer)
         {
-            string gpuFallbackReason = string.Empty;
-            if (CanTryGpuLineEvidencePrefilter(studentLayer, standardLayer, out gpuFallbackReason)
-                && TryEvaluateLineMatchWithGpuPrefilter(studentLayer, standardLayer, out LineMatchResult gpuResult, out gpuFallbackReason))
+            string prefilterFallbackReason = useGpuLineEvidencePrefilter ? string.Empty : "GPU/ROI预筛已关闭";
+            if (useGpuLineEvidencePrefilter
+                && TryEvaluateLineMatchWithSourcePrefilter(studentLayer, standardLayer, out LineMatchResult prefilterResult, out prefilterFallbackReason))
             {
-                return gpuResult;
+                return prefilterResult;
             }
 
             if (useGpuLineEvidencePrefilter)
             {
-                LogGpuPrefilterFallbackOnce($"line#{standardLayer?.layerNum}", gpuFallbackReason);
+                LogGpuPrefilterFallbackOnce($"line#{standardLayer?.layerNum}", prefilterFallbackReason);
             }
 
             LineMatchResult cpuResult = EvaluateLineMatchCpuFallback(studentLayer, standardLayer);
             cpuResult.GpuPrefilterEnabled = useGpuLineEvidencePrefilter;
             cpuResult.GpuPrefilterUsed = false;
-            cpuResult.GpuPrefilterFallbackReason = gpuFallbackReason ?? string.Empty;
+            cpuResult.GpuPrefilterFallbackReason = prefilterFallbackReason ?? string.Empty;
+            cpuResult.PrefilterMode = PrefilterModeFullCpu;
+            cpuResult.FullCpuFallbackUsed = true;
+            cpuResult.PrefilterFallbackReason = prefilterFallbackReason ?? string.Empty;
             return cpuResult;
         }
 
-        private bool TryEvaluateLineMatchWithGpuPrefilter(LayerManager studentLayer, LayerManager standardLayer, out LineMatchResult result, out string failReason)
+        private bool TryEvaluateLineMatchWithSourcePrefilter(LayerManager studentLayer, LayerManager standardLayer, out LineMatchResult result, out string failReason)
         {
             failReason = string.Empty;
             List<PositionInt> standardPixels = GetStandardPixels(standardLayer);
@@ -2284,13 +2351,32 @@ namespace jxzt
                 ErrorPosition = standardPixels.Count > 0 ? GetAveragePoint(standardPixels) : Vector2.zero,
                 MissingErrorPosition = standardPixels.Count > 0 ? GetAveragePoint(standardPixels) : Vector2.zero,
                 ExtraErrorPosition = standardPixels.Count > 0 ? GetAveragePoint(standardPixels) : Vector2.zero,
-                GpuPrefilterEnabled = useGpuLineEvidencePrefilter
+                GpuPrefilterEnabled = useGpuLineEvidencePrefilter,
+                PrefilterMode = string.Empty,
+                FullCpuFallbackUsed = false
             };
 
             if (!result.HasStandardPixels)
             {
                 failReason = "标准线无像素";
+                result.PrefilterMode = PrefilterModeCpuRoi;
+                result.PrefilterFallbackReason = failReason;
+                return true;
+            }
+
+            if (standardLayer == null || standardLayer.lineshape != lineshape.直线)
+            {
+                failReason = "非直线图层需要FULL_CPU判分";
                 return false;
+            }
+
+            if (studentLayer == null || studentLayer.LayerSize == null || studentLayer.Image_colors == null)
+            {
+                failReason = "学生图层或 Image_colors 为空";
+                result.PrefilterMode = PrefilterModeCpuRoi;
+                result.PrefilterFallbackReason = failReason;
+                result.ErrorPosition = standardPixels.Count > 0 ? GetAveragePoint(standardPixels) : Vector2.zero;
+                return true;
             }
 
             result.Tolerance = GetLineTolerance(standardPixels);
@@ -2309,7 +2395,8 @@ namespace jxzt
             PixelBounds candidateBounds = ExpandBounds(GetBounds(shiftedStandardPixels), candidateExpand);
             GetLinePrefilterParameters(shiftedStandardPixels, mainAxis, result.Tolerance, out Vector2 center, out ProjectionStats standardStats, out float bandWidth, out float endpointSlack, out float extensionSearchSlack);
 
-            if (!TryGpuPrefilterLineCandidates(
+            string prefilterMode;
+            if (!TryPrefilterLineCandidatesFromSourceWithFallback(
                     studentLayer,
                     candidateBounds,
                     mainAxis,
@@ -2322,6 +2409,7 @@ namespace jxzt
                     $"line#{standardLayer.layerNum}",
                     out List<PositionInt> nearLineCandidatePixels,
                     out GpuLineEvidenceCounters counters,
+                    out prefilterMode,
                     out failReason))
             {
                 result.GpuPrefilterFallbackReason = failReason;
@@ -2330,15 +2418,27 @@ namespace jxzt
                 result.GpuNearCandidates = counters.NearLineCandidateCount;
                 result.GpuIgnoredOpaque = counters.IgnoredOpaqueCount;
                 result.GpuOverflow = counters.Overflow;
+                result.PrefilterMode = string.IsNullOrEmpty(prefilterMode) ? PrefilterModeCpuRoi : prefilterMode;
+                result.PrefilterFallbackReason = failReason;
+                if (counters.Overflow)
+                {
+                    result.HasStudentPixels = false;
+                    result.ErrorPosition = GetAveragePoint(shiftedStandardPixels);
+                    result.RawCandidateCount = counters.NearLineCandidateCount;
+                    return true;
+                }
                 return false;
             }
 
-            result.GpuPrefilterUsed = true;
+            result.GpuPrefilterUsed = prefilterMode == PrefilterModeGpu;
             result.GpuRoiPixels = counters.RoiPixelCount;
             result.GpuRawOpaqueInRoi = counters.RawOpaqueInRoiCount;
             result.GpuNearCandidates = counters.NearLineCandidateCount;
             result.GpuIgnoredOpaque = counters.IgnoredOpaqueCount;
             result.GpuOverflow = counters.Overflow;
+            result.GpuPrefilterFallbackReason = failReason;
+            result.PrefilterMode = prefilterMode;
+            result.PrefilterFallbackReason = failReason;
 
             if (nearLineCandidatePixels.Count == 0)
             {
@@ -2349,7 +2449,7 @@ namespace jxzt
             }
 
             result.HasStudentPixels = true;
-            using (ScoringPerf.ScopeDetailed(ScoringPerf.TitleKey($"AnswerCheck.CandidateFilterGpu#{standardLayer.layerNum}", ScoringPerf.CurrentTitleId), $"nearCandidates={nearLineCandidatePixels.Count};standard={shiftedStandardPixels.Count}"))
+            using (ScoringPerf.ScopeDetailed(ScoringPerf.TitleKey($"AnswerCheck.CandidateFilter{prefilterMode}#{standardLayer.layerNum}", ScoringPerf.CurrentTitleId), $"nearCandidates={nearLineCandidatePixels.Count};standard={shiftedStandardPixels.Count}"))
             {
                 if (usePatternedLineMatch)
                 {
@@ -2364,7 +2464,8 @@ namespace jxzt
                 }
             }
 
-            return CompleteLineMatchFromCandidates(result, standardLayer, shiftedStandardPixels, nearLineCandidatePixels, mainAxis, standardProjectedLength, usePatternedLineMatch);
+            result = CompleteLineMatchFromCandidates(result, standardLayer, shiftedStandardPixels, nearLineCandidatePixels, mainAxis, standardProjectedLength, usePatternedLineMatch);
+            return true;
         }
 
         private LineMatchResult EvaluateLineMatchCpuFallback(LayerManager studentLayer, LayerManager standardLayer)
@@ -2384,7 +2485,9 @@ namespace jxzt
                 StudentLineType = linetype.unknown,
                 ErrorPosition = standardPixels.Count > 0 ? GetAveragePoint(standardPixels) : Vector2.zero,
                 MissingErrorPosition = standardPixels.Count > 0 ? GetAveragePoint(standardPixels) : Vector2.zero,
-                ExtraErrorPosition = studentPixels.Count > 0 ? GetAveragePoint(studentPixels) : Vector2.zero
+                ExtraErrorPosition = studentPixels.Count > 0 ? GetAveragePoint(studentPixels) : Vector2.zero,
+                PrefilterMode = PrefilterModeFullCpu,
+                FullCpuFallbackUsed = true
             };
 
             if (!result.HasStandardPixels || !result.HasStudentPixels)
@@ -3626,7 +3729,7 @@ namespace jxzt
 
             if (lineEvidencePrefilterShader == null)
             {
-                failReason = "LineEvidencePrefilter ComputeShader 未挂载";
+                failReason = GetMissingLineEvidenceShaderReason();
                 return false;
             }
 
@@ -3700,13 +3803,272 @@ namespace jxzt
             return ok;
         }
 
+        private bool TryPrefilterLineCandidatesFromSourceWithFallback(
+            LayerManager studentLayer,
+            PixelBounds candidateBounds,
+            Vector2 axis,
+            Vector2 center,
+            float standardMin,
+            float standardMax,
+            float bandWidth,
+            float endpointSlack,
+            float extensionSearchSlack,
+            string context,
+            out List<PositionInt> nearLineCandidatePixels,
+            out GpuLineEvidenceCounters counters,
+            out string prefilterMode,
+            out string failReason)
+        {
+            nearLineCandidatePixels = new List<PositionInt>();
+            counters = new GpuLineEvidenceCounters();
+            prefilterMode = string.Empty;
+            failReason = string.Empty;
+
+            string gpuFailReason = string.Empty;
+            GpuLineEvidenceCounters gpuCounters = new GpuLineEvidenceCounters();
+            bool gpuOverflow = false;
+            if (lineEvidencePrefilterShader == null)
+            {
+                LogGpuPrefilterFallbackOnce(context, GetMissingLineEvidenceShaderReason());
+            }
+
+            if (TryGpuPrefilterLineCandidates(
+                    studentLayer,
+                    candidateBounds,
+                    axis,
+                    center,
+                    standardMin,
+                    standardMax,
+                    bandWidth,
+                    endpointSlack,
+                    extensionSearchSlack,
+                    context,
+                    out nearLineCandidatePixels,
+                    out gpuCounters,
+                    out gpuFailReason))
+            {
+                counters = gpuCounters;
+                prefilterMode = PrefilterModeGpu;
+                return true;
+            }
+
+            gpuOverflow = gpuCounters.Overflow;
+            if (!string.IsNullOrEmpty(gpuFailReason))
+            {
+                LogGpuPrefilterFallbackOnce(context, gpuFailReason);
+            }
+
+            if (TryCpuPrefilterLineCandidatesFromSource(
+                    studentLayer,
+                    candidateBounds,
+                    axis,
+                    center,
+                    standardMin,
+                    standardMax,
+                    bandWidth,
+                    endpointSlack,
+                    extensionSearchSlack,
+                    Mathf.Max(1, gpuMaxPrefilterOutputPixels),
+                    out nearLineCandidatePixels,
+                    out counters,
+                    out string cpuFailReason))
+            {
+                counters.Overflow = counters.Overflow || gpuOverflow;
+                prefilterMode = PrefilterModeCpuRoi;
+                failReason = gpuFailReason;
+                return true;
+            }
+
+            counters.Overflow = counters.Overflow || gpuOverflow;
+            prefilterMode = PrefilterModeCpuRoi;
+            failReason = string.IsNullOrEmpty(gpuFailReason)
+                ? cpuFailReason
+                : $"{gpuFailReason}; CPU_ROI={cpuFailReason}";
+            return false;
+        }
+
+        private List<PositionInt> ExtractOpaquePixelsInsideBoundsFromSource(
+            LayerManager studentLayer,
+            PixelBounds bounds,
+            int maxOutputPixels,
+            out int rawOpaqueInRoi,
+            out bool overflow)
+        {
+            List<PositionInt> pixels = new List<PositionInt>();
+            rawOpaqueInRoi = 0;
+            overflow = false;
+            if (!TryGetLayerSource(studentLayer, out Color32[] source, out int width, out int height))
+            {
+                return pixels;
+            }
+
+            PixelBounds clamped = ClampBoundsToLayer(bounds, width, height);
+            if (GetBoundsArea(clamped) <= 0)
+            {
+                return pixels;
+            }
+
+            maxOutputPixels = Mathf.Max(1, maxOutputPixels);
+            int sourceLength = source.Length;
+            for (int y = clamped.minY; y <= clamped.maxY; y++)
+            {
+                int row = y * width;
+                if (row >= sourceLength)
+                {
+                    break;
+                }
+
+                int rowEnd = Mathf.Min(row + width, sourceLength);
+                int minIndex = Mathf.Min(row + clamped.minX, rowEnd);
+                int maxIndex = Mathf.Min(row + clamped.maxX, rowEnd - 1);
+                for (int index = minIndex; index <= maxIndex; index++)
+                {
+                    if (source[index].a <= 0)
+                    {
+                        continue;
+                    }
+
+                    rawOpaqueInRoi++;
+                    if (pixels.Count < maxOutputPixels)
+                    {
+                        pixels.Add(new PositionInt(index - row, y));
+                    }
+                    else
+                    {
+                        overflow = true;
+                    }
+                }
+            }
+
+            return pixels;
+        }
+
+        private bool TryCpuPrefilterLineCandidatesFromSource(
+            LayerManager studentLayer,
+            PixelBounds candidateBounds,
+            Vector2 axis,
+            Vector2 center,
+            float standardMin,
+            float standardMax,
+            float bandWidth,
+            float endpointSlack,
+            float extensionSearchSlack,
+            int maxOutputPixels,
+            out List<PositionInt> nearLineCandidatePixels,
+            out GpuLineEvidenceCounters counters,
+            out string failReason)
+        {
+            nearLineCandidatePixels = new List<PositionInt>();
+            counters = new GpuLineEvidenceCounters();
+            failReason = string.Empty;
+            if (!TryGetLayerSource(studentLayer, out Color32[] source, out int width, out int height))
+            {
+                failReason = "CPU_ROI学生图层或 Image_colors 无效";
+                return false;
+            }
+
+            PixelBounds clamped = ClampBoundsToLayer(candidateBounds, width, height);
+            long roiPixels = GetBoundsArea(clamped);
+            counters.RoiPixelCount = roiPixels > int.MaxValue ? int.MaxValue : (int)roiPixels;
+            if (roiPixels <= 0)
+            {
+                failReason = "CPU_ROI ROI 为空";
+                return false;
+            }
+
+            if (axis.sqrMagnitude <= 0.0001f)
+            {
+                failReason = "CPU_ROI标准线主轴无效";
+                return false;
+            }
+
+            maxOutputPixels = Mathf.Max(1, maxOutputPixels);
+            axis = axis.normalized;
+            Vector2 normal = new Vector2(-axis.y, axis.x).normalized;
+            float minProjection = standardMin - extensionSearchSlack;
+            float maxProjection = standardMax + extensionSearchSlack;
+            int sourceLength = source.Length;
+
+            for (int y = clamped.minY; y <= clamped.maxY; y++)
+            {
+                int row = y * width;
+                if (row >= sourceLength)
+                {
+                    break;
+                }
+
+                int rowEnd = Mathf.Min(row + width, sourceLength);
+                int minIndex = Mathf.Min(row + clamped.minX, rowEnd);
+                int maxIndex = Mathf.Min(row + clamped.maxX, rowEnd - 1);
+                for (int index = minIndex; index <= maxIndex; index++)
+                {
+                    if (source[index].a <= 0)
+                    {
+                        continue;
+                    }
+
+                    counters.RawOpaqueInRoiCount++;
+                    int x = index - row;
+                    Vector2 p = new Vector2(x, y);
+                    float projection = Vector2.Dot(p, axis);
+                    float perpendicularDistance = Mathf.Abs(Vector2.Dot(p - center, normal));
+                    bool nearLine = perpendicularDistance <= bandWidth
+                                    && projection >= minProjection
+                                    && projection <= maxProjection;
+                    if (!nearLine)
+                    {
+                        counters.IgnoredOpaqueCount++;
+                        continue;
+                    }
+
+                    counters.NearLineCandidateCount++;
+                    if (nearLineCandidatePixels.Count < maxOutputPixels)
+                    {
+                        nearLineCandidatePixels.Add(new PositionInt(x, y));
+                    }
+                    else
+                    {
+                        counters.Overflow = true;
+                    }
+                }
+            }
+
+            if (counters.Overflow)
+            {
+                failReason = "CPU_ROI近线候选像素超过上限";
+                return false;
+            }
+
+            return true;
+        }
+
+        private bool TryGetLayerSource(LayerManager layer, out Color32[] source, out int width, out int height)
+        {
+            source = null;
+            width = 0;
+            height = 0;
+            if (layer == null || layer.LayerSize == null || layer.Image_colors == null)
+            {
+                return false;
+            }
+
+            width = layer.LayerSize.width;
+            height = layer.LayerSize.height;
+            source = layer.Image_colors;
+            long expectedLength = (long)width * height;
+            return width > 0
+                   && height > 0
+                   && expectedLength > 0
+                   && expectedLength <= source.Length;
+        }
+
         private bool TryGetGpuLineEvidencePrefilter(out GpuLineEvidencePrefilter prefilter, out string failReason)
         {
             prefilter = null;
             failReason = string.Empty;
             if (lineEvidencePrefilterShader == null)
             {
-                failReason = "LineEvidencePrefilter ComputeShader 未挂载";
+                failReason = GetMissingLineEvidenceShaderReason();
                 return false;
             }
 
@@ -3778,6 +4140,11 @@ namespace jxzt
             {
                 Debug.LogWarning($"[AnswerCheck] GPU像素预筛回退CPU context={context}, reason={reason}");
             }
+        }
+
+        private string GetMissingLineEvidenceShaderReason()
+        {
+            return $"LineEvidencePrefilter ComputeShader 未挂载，请把 {LineEvidencePrefilterShaderPath} 挂到 AnswerCheck.lineEvidencePrefilterShader";
         }
 
         private bool IsQuietGpuFallbackReason(string reason)
