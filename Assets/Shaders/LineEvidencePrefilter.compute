@@ -1,0 +1,72 @@
+#pragma kernel CSPrefilterLinePixels
+
+Texture2D<float4> _StudentTex;
+RWStructuredBuffer<int2> _OutputPixels;
+RWStructuredBuffer<uint> _Counters;
+
+int _TextureWidth;
+int _TextureHeight;
+int _RoiMinX;
+int _RoiMinY;
+int _RoiMaxX;
+int _RoiMaxY;
+int _MaxOutputPixels;
+
+float2 _Axis;
+float2 _Center;
+float _StandardMin;
+float _StandardMax;
+float _BandWidth;
+float _EndpointSlack;
+float _ExtensionSearchSlack;
+
+[numthreads(8, 8, 1)]
+void CSPrefilterLinePixels(uint3 id : SV_DispatchThreadID)
+{
+    int roiWidth = _RoiMaxX - _RoiMinX + 1;
+    int roiHeight = _RoiMaxY - _RoiMinY + 1;
+    if (id.x >= (uint)roiWidth || id.y >= (uint)roiHeight)
+    {
+        return;
+    }
+
+    int x = _RoiMinX + (int)id.x;
+    int y = _RoiMinY + (int)id.y;
+    if (x < 0 || x >= _TextureWidth || y < 0 || y >= _TextureHeight)
+    {
+        return;
+    }
+
+    float alpha = _StudentTex.Load(int3(x, y, 0)).a;
+    if (alpha <= 0.0)
+    {
+        return;
+    }
+
+    InterlockedAdd(_Counters[0], 1u);
+
+    float2 p = float2((float)x, (float)y);
+    float2 normal = normalize(float2(-_Axis.y, _Axis.x));
+    float projection = dot(p, _Axis);
+    float perpendicularDistance = abs(dot(p - _Center, normal));
+    float minProjection = _StandardMin - _ExtensionSearchSlack;
+    float maxProjection = _StandardMax + _ExtensionSearchSlack;
+
+    if (perpendicularDistance <= _BandWidth && projection >= minProjection && projection <= maxProjection)
+    {
+        uint outputIndex;
+        InterlockedAdd(_Counters[1], 1u, outputIndex);
+        if (outputIndex < (uint)_MaxOutputPixels)
+        {
+            _OutputPixels[outputIndex] = int2(x, y);
+        }
+        else
+        {
+            InterlockedMax(_Counters[3], 1u);
+        }
+    }
+    else
+    {
+        InterlockedAdd(_Counters[2], 1u);
+    }
+}

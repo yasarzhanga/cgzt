@@ -19,6 +19,12 @@ namespace jxzt
     /// </summary>
     public class AnswerCheck : MonoBehaviour
     {
+        public enum ScoringStrictness
+        {
+            ExamStrict,
+            HomeworkRelaxed
+        }
+
         public StudentLayerManager studentlayer_manager;
         public List<LayerManager> standardlayer_manager;
         public string str_ErrorPoints;
@@ -29,6 +35,19 @@ namespace jxzt
         public float defaultErrorLimit = 0.27f;
         public float defaultRightLimit = 0.35f;
         public Dictionary<string, List<ErrorLimit>> errorLimitDic;
+
+        [Header("判分宽松度")]
+        public ScoringStrictness scoringStrictness = ScoringStrictness.HomeworkRelaxed;
+
+        [Range(1f, 1.6f)]
+        public float homeworkToleranceScale = 1.25f;
+
+        [Header("GPU像素预筛选/内存优化")]
+        public bool useGpuLineEvidencePrefilter = true;
+        public ComputeShader lineEvidencePrefilterShader;
+        public int gpuPrefilterMinRoiPixels = 200000;
+        public int gpuMaxPrefilterOutputPixels = 1000000;
+        public bool storeIgnoredAuxiliaryPixelsForDebug = false;
 
 
         // 调试用：记录当前一次判分的标准/学生包围盒
@@ -65,6 +84,8 @@ namespace jxzt
         private int _correctCount = 0;
 
         private LayerPixelCache _studentPixelCache;
+        private GpuLineEvidencePrefilter _gpuLineEvidencePrefilter;
+        private readonly HashSet<string> _gpuPrefilterWarningKeys = new HashSet<string>();
         private List<PolylineGroup> _polylineGroups;
         private Dictionary<int, PolylineGroup> _polylineGroupByLayerNum;
         private Dictionary<int, Dictionary<int, PolylineSegmentResult>> _polylineResultCache;
@@ -80,6 +101,16 @@ namespace jxzt
 
         private void Start() {
             errorLimitDic = LoadErrorLimitConfig();
+        }
+
+        private void OnDestroy()
+        {
+            _gpuLineEvidencePrefilter?.Dispose();
+            _gpuLineEvidencePrefilter = null;
+            _studentPixelCache = null;
+            _polylineResultCache = null;
+            _polylineGroups = null;
+            _polylineGroupByLayerNum = null;
         }
 
         /// <summary>
@@ -111,6 +142,12 @@ namespace jxzt
                 // 记录判分开始时间
                 _checkStartTime = Time.realtimeSinceStartup;
                 _correctCount = 0;
+                _gpuPrefilterWarningKeys.Clear();
+                if (useGpuLineEvidencePrefilter)
+                {
+                    _studentPixelCache = null;
+                }
+                _gpuLineEvidencePrefilter?.InvalidateStudentTexture();
                 BuildPolylineGroups();
 
 
@@ -518,7 +555,7 @@ namespace jxzt
                 layer.lineType = lineMatch.StudentLineType;
                 standardlayer.displayError_position = lineMatch.ErrorPosition;
 
-                string lineMatchDetail = $"recall={lineMatch.Recall:F3};precision={lineMatch.Precision:F3};missing={lineMatch.MissingRatio:F3};extra={lineMatch.ExtraRatio:F3};p95={lineMatch.P95Distance:F1};bestOffset={lineMatch.BestOffset};studentLineType={lineMatch.StudentLineType};standardLineType={standardlayer.lineType};patterned={lineMatch.IsPatternedMode};geometry={lineMatch.GeometryPrecision:F3};macro={lineMatch.MacroCoverage:F3};macroLimit={lineMatch.MacroCoverageLimit:F3};span={lineMatch.PatternLengthRatio:F3};endpointMiss={lineMatch.PatternEndpointMiss:F1};endpointLimit={lineMatch.PatternEndpointLimit:F1};extraSpan={lineMatch.PatternExtraSpanRatio:F3};lengthRatio={lineMatch.ProjectedLengthRatio:F3};rawCandidates={lineMatch.RawCandidateCount};corePixels={lineMatch.CorePixelCount};ignoredAuxiliary={lineMatch.IgnoredAuxiliaryPixelCount};extensionPixels={lineMatch.ExtensionPixelCount};trueExtensionRatio={lineMatch.TrueExtensionRatio:F3}";
+                string lineMatchDetail = $"recall={lineMatch.Recall:F3};precision={lineMatch.Precision:F3};missing={lineMatch.MissingRatio:F3};extra={lineMatch.ExtraRatio:F3};p95={lineMatch.P95Distance:F1};bestOffset={lineMatch.BestOffset};studentLineType={lineMatch.StudentLineType};standardLineType={standardlayer.lineType};patterned={lineMatch.IsPatternedMode};geometry={lineMatch.GeometryPrecision:F3};macro={lineMatch.MacroCoverage:F3};macroLimit={lineMatch.MacroCoverageLimit:F3};span={lineMatch.PatternLengthRatio:F3};endpointMiss={lineMatch.PatternEndpointMiss:F1};endpointLimit={lineMatch.PatternEndpointLimit:F1};extraSpan={lineMatch.PatternExtraSpanRatio:F3};lengthRatio={lineMatch.ProjectedLengthRatio:F3};rawCandidates={lineMatch.RawCandidateCount};corePixels={lineMatch.CorePixelCount};ignoredAuxiliary={lineMatch.IgnoredAuxiliaryPixelCount};extensionPixels={lineMatch.ExtensionPixelCount};trueExtensionRatio={lineMatch.TrueExtensionRatio:F3};scoringStrictness={scoringStrictness};gpuPrefilterEnabled={lineMatch.GpuPrefilterEnabled};gpuPrefilterUsed={lineMatch.GpuPrefilterUsed};gpuPrefilterFallbackReason={lineMatch.GpuPrefilterFallbackReason};roiPixels={lineMatch.GpuRoiPixels};gpuRawOpaqueInRoi={lineMatch.GpuRawOpaqueInRoi};nearCandidates={lineMatch.GpuNearCandidates};ignoredOpaque={lineMatch.GpuIgnoredOpaque};overflow={lineMatch.GpuOverflow}";
                 ScoringPerf.LayerMatchMetric(standardlayer.layerNum, lineMatchDetail);
                 if (ScoringPerf.VerboseLayerLogs)
                 {
@@ -563,7 +600,8 @@ namespace jxzt
                     return ErrorReson.图线不在或偏离正确位置.ToString();
                 }
 
-                if (standardlayer.lineType != lineMatch.StudentLineType)
+                if (standardlayer.lineType != lineMatch.StudentLineType
+                    && HasEnoughGeometryForLineTypeCheck(lineMatch))
                 {
                     standardlayer.isRight = false;
                     return ErrorReson.线型使用错误.ToString();
@@ -956,7 +994,7 @@ namespace jxzt
             return new Vector2((a.x + b.x) / 2, (a.y + b.y) / 2);
         }
 
-        private struct PixelBounds
+        internal struct PixelBounds
         {
             public int minX;
             public int maxX;
@@ -1005,6 +1043,14 @@ namespace jxzt
             public Vector2 ExtraErrorPosition;
             public bool IsTooShort;
             public bool IsTooLong;
+            public bool GpuPrefilterEnabled;
+            public bool GpuPrefilterUsed;
+            public string GpuPrefilterFallbackReason;
+            public int GpuRoiPixels;
+            public int GpuRawOpaqueInRoi;
+            public int GpuNearCandidates;
+            public int GpuIgnoredOpaque;
+            public bool GpuOverflow;
         }
 
         private struct ProjectionStats
@@ -1018,10 +1064,16 @@ namespace jxzt
         {
             public List<PositionInt> CorePixels = new List<PositionInt>();
             public List<PositionInt> ExtensionPixels = new List<PositionInt>();
-            public List<PositionInt> IgnoredAuxiliaryPixels = new List<PositionInt>();
+            public List<PositionInt> IgnoredAuxiliaryPixels;
+            public int IgnoredAuxiliaryCount;
             public int RawCandidateCount;
             public float TrueExtensionRatio;
             public float EvidenceProjectedLength;
+
+            public int GetIgnoredAuxiliaryCount()
+            {
+                return IgnoredAuxiliaryPixels != null ? IgnoredAuxiliaryPixels.Count : IgnoredAuxiliaryCount;
+            }
 
             public List<PositionInt> GetCoreAndExtensionPixels()
             {
@@ -1073,6 +1125,13 @@ namespace jxzt
             public int IgnoredAuxiliaryCount;
             public int ExtensionPixelCount;
             public float TrueExtensionRatio;
+            public bool GpuPrefilterUsed;
+            public int GpuRoiPixels;
+            public int GpuRawOpaqueInRoi;
+            public int GpuNearCandidates;
+            public int GpuIgnoredOpaque;
+            public bool GpuOverflow;
+            public string GpuFallbackReason;
         }
 
         private sealed class LayerPixelCache
@@ -1598,6 +1657,30 @@ namespace jxzt
 
         private Dictionary<int, PolylineSegmentResult> EvaluatePolylineGroup(PolylineGroup group)
         {
+            string gpuFallbackReason = string.Empty;
+            LayerManager firstLayer = group != null && group.Segments != null && group.Segments.Count > 0 ? group.Segments[0].Layer : null;
+            if (CanTryGpuLineEvidencePrefilter(studentlayer_manager, firstLayer, out gpuFallbackReason)
+                && TryEvaluatePolylineGroupWithGpuPrefilter(group, out Dictionary<int, PolylineSegmentResult> gpuResults, out gpuFallbackReason))
+            {
+                return gpuResults;
+            }
+
+            if (useGpuLineEvidencePrefilter)
+            {
+                LogGpuPrefilterFallbackOnce($"polylineGroup#{group?.GroupId}", gpuFallbackReason);
+            }
+
+            Dictionary<int, PolylineSegmentResult> cpuResults = EvaluatePolylineGroupCpuFallback(group);
+            foreach (var result in cpuResults.Values)
+            {
+                result.GpuPrefilterUsed = false;
+                result.GpuFallbackReason = gpuFallbackReason ?? string.Empty;
+            }
+            return cpuResults;
+        }
+
+        private Dictionary<int, PolylineSegmentResult> EvaluatePolylineGroupCpuFallback(PolylineGroup group)
+        {
             Dictionary<int, PolylineSegmentResult> results = CreateDefaultPolylineResults(group, ErrorReson.图线不在或偏离正确位置);
             if (group == null || group.Segments == null || group.Segments.Count == 0 || group.StandardPixels == null || group.StandardPixels.Count == 0)
             {
@@ -1684,13 +1767,24 @@ namespace jxzt
                 float coverage = GetSegmentCoverage(assignedPixels[i], p0[i], axis[i], length[i], group.Tolerance, out Vector2 missingPosition);
                 float extraRatio = GetSegmentExtraRatio(assignedPixels[i], extensionPixels[i], p0[i], axis[i], length[i], group.Tolerance, out Vector2 extraPosition, out float lengthRatio);
                 float trueExtensionRatio = segmentEvidence[i] != null ? segmentEvidence[i].TrueExtensionRatio : 0f;
+                float rightCoverage = GetPolylineSegmentRightCoverage(length[i]);
                 linetype studentType = assignedPixels[i].Count > 0
                     ? RecognizeLineTypeByProjection(assignedPixels[i], axis[i], segment.Layer.lineType == linetype.实线, length[i])
                     : linetype.unknown;
+                LineMatchResult segmentLineTypeEvidence = new LineMatchResult
+                {
+                    StudentLineType = studentType,
+                    Recall = coverage,
+                    Precision = groupPrecision,
+                    P95Distance = 0f,
+                    RightLimit = rightCoverage,
+                    PrecisionLimit = limits.precisionLimit,
+                    Tolerance = group.Tolerance
+                };
 
                 ErrorReson error = ErrorReson.正确;
                 Vector2 errorPosition = GetAveragePoint(shiftedSegmentPixels[i]);
-                float rightCoverage = GetPolylineSegmentRightCoverage(length[i]);
+                float longLengthRatioLimit = IsHomeworkRelaxed() ? 1.18f : 1.08f;
                 if (assignedPixels[i].Count == 0 && extensionPixels[i].Count == 0)
                 {
                     error = ErrorReson.图线不在或偏离正确位置;
@@ -1700,14 +1794,16 @@ namespace jxzt
                     error = ErrorReson.图线不在或偏离正确位置;
                     errorPosition = missingPosition;
                 }
-                else if (studentType != linetype.unknown && studentType != segment.Layer.lineType)
+                else if (studentType != linetype.unknown
+                         && studentType != segment.Layer.lineType
+                         && HasEnoughGeometryForLineTypeCheck(segmentLineTypeEvidence))
                 {
                     error = ErrorReson.线型使用错误;
                     errorPosition = assignedPixels[i].Count > 0 ? GetAveragePoint(assignedPixels[i]) : errorPosition;
                 }
                 else if (extensionPixels[i].Count > 0
                          && trueExtensionRatio > GetTrueExtensionLongLimit(length[i], group.Tolerance)
-                         && lengthRatio > 1.08f)
+                         && lengthRatio > longLengthRatioLimit)
                 {
                     error = ErrorReson.图线过长;
                     errorPosition = extraPosition;
@@ -1733,7 +1829,7 @@ namespace jxzt
                     ExtraRatio = extraRatio,
                     RawCandidateCount = segmentEvidence[i]?.RawCandidateCount ?? 0,
                     AssignedCoreCount = assignedPixels[i].Count,
-                    IgnoredAuxiliaryCount = segmentEvidence[i]?.IgnoredAuxiliaryPixels.Count ?? 0,
+                    IgnoredAuxiliaryCount = segmentEvidence[i]?.GetIgnoredAuxiliaryCount() ?? 0,
                     ExtensionPixelCount = extensionPixels[i].Count,
                     TrueExtensionRatio = trueExtensionRatio
                 };
@@ -1742,10 +1838,216 @@ namespace jxzt
             if (ScoringPerf.VerboseLayerLogs)
             {
                 string detail = string.Join("; ", segmentResults.Select(kv => $"#{kv.Key}:{kv.Value.Error},rawCandidates={kv.Value.RawCandidateCount},assignedCore={kv.Value.AssignedCoreCount},ignoredAuxiliary={kv.Value.IgnoredAuxiliaryCount},extensionPixels={kv.Value.ExtensionPixelCount},trueExtensionRatio={kv.Value.TrueExtensionRatio:F3},coverage={kv.Value.Coverage:F2},lengthRatio={kv.Value.LengthRatio:F2},studentType={kv.Value.StudentLineType}"));
-                Debug.Log($"[AnswerCheck] 折线组判分 group={group.GroupId}, precision={groupPrecision:F3}, extra={groupExtraRatio:F3}, offset={bestOffset}, {detail}");
+                Debug.Log($"[AnswerCheck] 折线组判分 group={group.GroupId}, scoringStrictness={scoringStrictness}, precision={groupPrecision:F3}, extra={groupExtraRatio:F3}, offset={bestOffset}, {detail}");
             }
 
             return segmentResults;
+        }
+
+        private bool TryEvaluatePolylineGroupWithGpuPrefilter(PolylineGroup group, out Dictionary<int, PolylineSegmentResult> segmentResults, out string failReason)
+        {
+            segmentResults = CreateDefaultPolylineResults(group, ErrorReson.图线不在或偏离正确位置);
+            failReason = string.Empty;
+            if (group == null || group.Segments == null || group.Segments.Count == 0 || group.StandardPixels == null || group.StandardPixels.Count == 0)
+            {
+                failReason = "折线组为空";
+                return false;
+            }
+
+            LayerManager firstLayer = group.Segments[0].Layer;
+            List<PositionInt> searchStandardPixels = DilateRepeated(group.StandardPixels, 2, firstLayer.LayerSize.width, firstLayer.LayerSize.height);
+            Vector2Int bestOffset = FindBestOffsetFromSource(searchStandardPixels, studentlayer_manager, 24, 2);
+
+            int segmentCount = group.Segments.Count;
+            Vector2 bestOffsetVector = new Vector2(bestOffset.x, bestOffset.y);
+            Vector2[] p0 = new Vector2[segmentCount];
+            Vector2[] p1 = new Vector2[segmentCount];
+            Vector2[] axis = new Vector2[segmentCount];
+            float[] length = new float[segmentCount];
+            List<PositionInt>[] assignedPixels = new List<PositionInt>[segmentCount];
+            List<PositionInt>[] extensionPixels = new List<PositionInt>[segmentCount];
+            List<PositionInt>[] shiftedSegmentPixels = new List<PositionInt>[segmentCount];
+            LineStudentEvidence[] segmentEvidence = new LineStudentEvidence[segmentCount];
+            GpuLineEvidenceCounters[] segmentGpuCounters = new GpuLineEvidenceCounters[segmentCount];
+
+            for (int i = 0; i < segmentCount; i++)
+            {
+                PolylineSegmentGuide segment = group.Segments[i];
+                p0[i] = segment.P0 + bestOffsetVector;
+                p1[i] = segment.P1 + bestOffsetVector;
+                axis[i] = segment.Axis;
+                length[i] = Mathf.Max(1f, segment.Length);
+                assignedPixels[i] = new List<PositionInt>();
+                extensionPixels[i] = new List<PositionInt>();
+                shiftedSegmentPixels[i] = ShiftPositions(segment.Pixels, bestOffset);
+            }
+
+            for (int i = 0; i < segmentCount; i++)
+            {
+                PolylineSegmentGuide segment = group.Segments[i];
+                if (shiftedSegmentPixels[i] == null || shiftedSegmentPixels[i].Count == 0)
+                {
+                    segmentEvidence[i] = BuildLineStudentEvidence(null, shiftedSegmentPixels[i], axis[i], group.Tolerance, IsPatternedLineType(segment.Layer.lineType));
+                    continue;
+                }
+
+                GetLinePrefilterParameters(shiftedSegmentPixels[i], axis[i], group.Tolerance, out Vector2 center, out ProjectionStats standardStats, out float bandWidth, out float endpointSlack, out float extensionSearchSlack);
+                int candidateExpand = Mathf.CeilToInt(group.Tolerance * 8f + length[i] * 0.25f);
+                PixelBounds candidateBounds = ExpandBounds(GetBounds(shiftedSegmentPixels[i]), candidateExpand);
+                if (!TryGpuPrefilterLineCandidates(
+                        studentlayer_manager,
+                        candidateBounds,
+                        axis[i],
+                        center,
+                        standardStats.Min,
+                        standardStats.Max,
+                        bandWidth,
+                        endpointSlack,
+                        extensionSearchSlack,
+                        $"polylineGroup#{group.GroupId}/segment#{segment.Layer.layerNum}",
+                        out List<PositionInt> nearLineCandidatePixels,
+                        out GpuLineEvidenceCounters counters,
+                        out failReason))
+                {
+                    return false;
+                }
+
+                segmentGpuCounters[i] = counters;
+                List<PositionInt> segmentCandidates = nearLineCandidatePixels.Count > 0
+                    ? GetPolylineSegmentCandidatePixels(nearLineCandidatePixels, p0[i], p1[i], axis[i], length[i], group.Tolerance)
+                    : nearLineCandidatePixels;
+                segmentEvidence[i] = BuildLineStudentEvidence(segmentCandidates, shiftedSegmentPixels[i], axis[i], group.Tolerance, IsPatternedLineType(segment.Layer.lineType));
+                assignedPixels[i] = segmentEvidence[i].CorePixels;
+                extensionPixels[i] = segmentEvidence[i].ExtensionPixels;
+            }
+
+            segmentResults = BuildPolylineSegmentResults(group, bestOffset, p0, axis, length, assignedPixels, extensionPixels, shiftedSegmentPixels, segmentEvidence, segmentGpuCounters, true, string.Empty);
+            return true;
+        }
+
+        private Dictionary<int, PolylineSegmentResult> BuildPolylineSegmentResults(
+            PolylineGroup group,
+            Vector2Int bestOffset,
+            Vector2[] p0,
+            Vector2[] axis,
+            float[] length,
+            List<PositionInt>[] assignedPixels,
+            List<PositionInt>[] extensionPixels,
+            List<PositionInt>[] shiftedSegmentPixels,
+            LineStudentEvidence[] segmentEvidence,
+            GpuLineEvidenceCounters[] segmentGpuCounters,
+            bool gpuPrefilterUsed,
+            string gpuFallbackReason)
+        {
+            int segmentCount = group.Segments.Count;
+            List<PositionInt> groupCorePixels = new List<PositionInt>();
+            List<PositionInt> groupExtensionPixels = new List<PositionInt>();
+            HashSet<long> groupCoreKeys = new HashSet<long>();
+            HashSet<long> groupExtensionKeys = new HashSet<long>();
+            float maxTrueExtensionRatio = 0f;
+            for (int i = 0; i < segmentCount; i++)
+            {
+                AddUniquePixels(assignedPixels[i], groupCorePixels, groupCoreKeys);
+                AddUniquePixels(extensionPixels[i], groupExtensionPixels, groupExtensionKeys);
+                maxTrueExtensionRatio = Mathf.Max(maxTrueExtensionRatio, segmentEvidence[i]?.TrueExtensionRatio ?? 0f);
+            }
+
+            LineLimits limits = GetLineLimits(group.Segments[0].Layer);
+            int groupEvidenceCount = groupCorePixels.Count + groupExtensionPixels.Count;
+            float groupPrecision = groupEvidenceCount == 0 ? 0f : groupCorePixels.Count / (float)groupEvidenceCount;
+            float groupExtraRatio = maxTrueExtensionRatio;
+            Vector2 groupExtraPosition = groupExtensionPixels.Count > 0 ? GetAveragePoint(groupExtensionPixels) : Vector2.zero;
+
+            Dictionary<int, PolylineSegmentResult> results = new Dictionary<int, PolylineSegmentResult>();
+            for (int i = 0; i < segmentCount; i++)
+            {
+                PolylineSegmentGuide segment = group.Segments[i];
+                float coverage = GetSegmentCoverage(assignedPixels[i], p0[i], axis[i], length[i], group.Tolerance, out Vector2 missingPosition);
+                float extraRatio = GetSegmentExtraRatio(assignedPixels[i], extensionPixels[i], p0[i], axis[i], length[i], group.Tolerance, out Vector2 extraPosition, out float lengthRatio);
+                float trueExtensionRatio = segmentEvidence[i] != null ? segmentEvidence[i].TrueExtensionRatio : 0f;
+                float rightCoverage = GetPolylineSegmentRightCoverage(length[i]);
+                linetype studentType = assignedPixels[i].Count > 0
+                    ? RecognizeLineTypeByProjection(assignedPixels[i], axis[i], segment.Layer.lineType == linetype.实线, length[i])
+                    : linetype.unknown;
+                LineMatchResult segmentLineTypeEvidence = new LineMatchResult
+                {
+                    StudentLineType = studentType,
+                    Recall = coverage,
+                    Precision = groupPrecision,
+                    P95Distance = 0f,
+                    RightLimit = rightCoverage,
+                    PrecisionLimit = limits.precisionLimit,
+                    Tolerance = group.Tolerance
+                };
+
+                ErrorReson error = ErrorReson.正确;
+                Vector2 errorPosition = GetAveragePoint(shiftedSegmentPixels[i]);
+                float longLengthRatioLimit = IsHomeworkRelaxed() ? 1.18f : 1.08f;
+                if (assignedPixels[i].Count == 0 && extensionPixels[i].Count == 0)
+                {
+                    error = ErrorReson.图线不在或偏离正确位置;
+                }
+                else if (coverage < 0.20f)
+                {
+                    error = ErrorReson.图线不在或偏离正确位置;
+                    errorPosition = missingPosition;
+                }
+                else if (studentType != linetype.unknown
+                         && studentType != segment.Layer.lineType
+                         && HasEnoughGeometryForLineTypeCheck(segmentLineTypeEvidence))
+                {
+                    error = ErrorReson.线型使用错误;
+                    errorPosition = assignedPixels[i].Count > 0 ? GetAveragePoint(assignedPixels[i]) : errorPosition;
+                }
+                else if (extensionPixels[i].Count > 0
+                         && trueExtensionRatio > GetTrueExtensionLongLimit(length[i], group.Tolerance)
+                         && lengthRatio > longLengthRatioLimit)
+                {
+                    error = ErrorReson.图线过长;
+                    errorPosition = extraPosition;
+                }
+                else if (coverage < rightCoverage)
+                {
+                    error = ErrorReson.图线过短;
+                    errorPosition = missingPosition;
+                }
+                else if (groupExtraRatio > 0.55f && groupPrecision < limits.precisionLimit)
+                {
+                    error = ErrorReson.图线不在或偏离正确位置;
+                    errorPosition = groupExtraPosition != Vector2.zero ? groupExtraPosition : errorPosition;
+                }
+
+                GpuLineEvidenceCounters gpuCounters = segmentGpuCounters != null ? segmentGpuCounters[i] : new GpuLineEvidenceCounters();
+                results[segment.Layer.layerNum] = new PolylineSegmentResult
+                {
+                    Error = error,
+                    ErrorPosition = errorPosition,
+                    StudentLineType = studentType == linetype.unknown ? group.LineType : studentType,
+                    Coverage = coverage,
+                    LengthRatio = lengthRatio,
+                    ExtraRatio = extraRatio,
+                    RawCandidateCount = segmentEvidence[i]?.RawCandidateCount ?? 0,
+                    AssignedCoreCount = assignedPixels[i].Count,
+                    IgnoredAuxiliaryCount = segmentEvidence[i]?.GetIgnoredAuxiliaryCount() ?? 0,
+                    ExtensionPixelCount = extensionPixels[i].Count,
+                    TrueExtensionRatio = trueExtensionRatio,
+                    GpuPrefilterUsed = gpuPrefilterUsed,
+                    GpuRoiPixels = gpuCounters.RoiPixelCount,
+                    GpuRawOpaqueInRoi = gpuCounters.RawOpaqueInRoiCount,
+                    GpuNearCandidates = gpuCounters.NearLineCandidateCount,
+                    GpuIgnoredOpaque = gpuCounters.IgnoredOpaqueCount,
+                    GpuOverflow = gpuCounters.Overflow,
+                    GpuFallbackReason = gpuFallbackReason ?? string.Empty
+                };
+            }
+
+            if (ScoringPerf.VerboseLayerLogs)
+            {
+                string detail = string.Join("; ", results.Select(kv => $"#{kv.Key}:{kv.Value.Error},rawCandidates={kv.Value.RawCandidateCount},assignedCore={kv.Value.AssignedCoreCount},ignoredAuxiliary={kv.Value.IgnoredAuxiliaryCount},extensionPixels={kv.Value.ExtensionPixelCount},trueExtensionRatio={kv.Value.TrueExtensionRatio:F3},coverage={kv.Value.Coverage:F2},lengthRatio={kv.Value.LengthRatio:F2},studentType={kv.Value.StudentLineType},gpuPrefilter={kv.Value.GpuPrefilterUsed},roiPixels={kv.Value.GpuRoiPixels},nearCandidates={kv.Value.GpuNearCandidates},ignoredOpaque={kv.Value.GpuIgnoredOpaque},overflow={kv.Value.GpuOverflow}"));
+                Debug.Log($"[AnswerCheck] 折线组判分 group={group.GroupId}, scoringStrictness={scoringStrictness}, gpuPrefilter={gpuPrefilterUsed}, precision={groupPrecision:F3}, extra={groupExtraRatio:F3}, offset={bestOffset}, {detail}");
+            }
+
+            return results;
         }
 
         private Dictionary<int, PolylineSegmentResult> CreateDefaultPolylineResults(PolylineGroup group, ErrorReson error)
@@ -1894,6 +2196,21 @@ namespace jxzt
 
         private float GetPolylineSegmentRightCoverage(float length)
         {
+            if (IsHomeworkRelaxed())
+            {
+                if (length < 80f)
+                {
+                    return 0.50f;
+                }
+
+                if (length < 160f)
+                {
+                    return 0.58f;
+                }
+
+                return 0.62f;
+            }
+
             if (length < 80f)
             {
                 return 0.60f;
@@ -1931,6 +2248,126 @@ namespace jxzt
         }
 
         private LineMatchResult EvaluateLineMatch(LayerManager studentLayer, LayerManager standardLayer)
+        {
+            string gpuFallbackReason = string.Empty;
+            if (CanTryGpuLineEvidencePrefilter(studentLayer, standardLayer, out gpuFallbackReason)
+                && TryEvaluateLineMatchWithGpuPrefilter(studentLayer, standardLayer, out LineMatchResult gpuResult, out gpuFallbackReason))
+            {
+                return gpuResult;
+            }
+
+            if (useGpuLineEvidencePrefilter)
+            {
+                LogGpuPrefilterFallbackOnce($"line#{standardLayer?.layerNum}", gpuFallbackReason);
+            }
+
+            LineMatchResult cpuResult = EvaluateLineMatchCpuFallback(studentLayer, standardLayer);
+            cpuResult.GpuPrefilterEnabled = useGpuLineEvidencePrefilter;
+            cpuResult.GpuPrefilterUsed = false;
+            cpuResult.GpuPrefilterFallbackReason = gpuFallbackReason ?? string.Empty;
+            return cpuResult;
+        }
+
+        private bool TryEvaluateLineMatchWithGpuPrefilter(LayerManager studentLayer, LayerManager standardLayer, out LineMatchResult result, out string failReason)
+        {
+            failReason = string.Empty;
+            List<PositionInt> standardPixels = GetStandardPixels(standardLayer);
+            LineLimits limits = GetLineLimits(standardLayer);
+            result = new LineMatchResult
+            {
+                HasStandardPixels = standardPixels.Count > 0,
+                HasStudentPixels = false,
+                ErrorLimit = limits.errorLimit,
+                RightLimit = limits.rightLimit,
+                PrecisionLimit = limits.precisionLimit,
+                StudentLineType = linetype.unknown,
+                ErrorPosition = standardPixels.Count > 0 ? GetAveragePoint(standardPixels) : Vector2.zero,
+                MissingErrorPosition = standardPixels.Count > 0 ? GetAveragePoint(standardPixels) : Vector2.zero,
+                ExtraErrorPosition = standardPixels.Count > 0 ? GetAveragePoint(standardPixels) : Vector2.zero,
+                GpuPrefilterEnabled = useGpuLineEvidencePrefilter
+            };
+
+            if (!result.HasStandardPixels)
+            {
+                failReason = "标准线无像素";
+                return false;
+            }
+
+            result.Tolerance = GetLineTolerance(standardPixels);
+            List<PositionInt> searchStandardPixels = DilateRepeated(standardPixels, 2, standardLayer.LayerSize.width, standardLayer.LayerSize.height);
+            using (ScoringPerf.ScopeDetailed(ScoringPerf.TitleKey($"AnswerCheck.OffsetSearchGpuSource#{standardLayer.layerNum}", ScoringPerf.CurrentTitleId), $"standardSearchPixels={searchStandardPixels.Count}"))
+            {
+                result.BestOffset = FindBestOffsetFromSource(searchStandardPixels, studentLayer, 24, 2);
+            }
+
+            List<PositionInt> shiftedStandardPixels = ShiftPositions(standardPixels, result.BestOffset);
+            Vector2 mainAxis = GetPrincipalAxis(shiftedStandardPixels);
+            float standardProjectedLength = Mathf.Max(1f, GetProjectedLength(shiftedStandardPixels, mainAxis));
+            bool usePatternedLineMatch = CanUsePatternedLineMatch(standardLayer);
+            float candidateLengthExpand = usePatternedLineMatch ? 0.22f : 0.08f;
+            int candidateExpand = Mathf.CeilToInt(result.Tolerance * 4f + standardProjectedLength * candidateLengthExpand);
+            PixelBounds candidateBounds = ExpandBounds(GetBounds(shiftedStandardPixels), candidateExpand);
+            GetLinePrefilterParameters(shiftedStandardPixels, mainAxis, result.Tolerance, out Vector2 center, out ProjectionStats standardStats, out float bandWidth, out float endpointSlack, out float extensionSearchSlack);
+
+            if (!TryGpuPrefilterLineCandidates(
+                    studentLayer,
+                    candidateBounds,
+                    mainAxis,
+                    center,
+                    standardStats.Min,
+                    standardStats.Max,
+                    bandWidth,
+                    endpointSlack,
+                    extensionSearchSlack,
+                    $"line#{standardLayer.layerNum}",
+                    out List<PositionInt> nearLineCandidatePixels,
+                    out GpuLineEvidenceCounters counters,
+                    out failReason))
+            {
+                result.GpuPrefilterFallbackReason = failReason;
+                result.GpuRoiPixels = counters.RoiPixelCount;
+                result.GpuRawOpaqueInRoi = counters.RawOpaqueInRoiCount;
+                result.GpuNearCandidates = counters.NearLineCandidateCount;
+                result.GpuIgnoredOpaque = counters.IgnoredOpaqueCount;
+                result.GpuOverflow = counters.Overflow;
+                return false;
+            }
+
+            result.GpuPrefilterUsed = true;
+            result.GpuRoiPixels = counters.RoiPixelCount;
+            result.GpuRawOpaqueInRoi = counters.RawOpaqueInRoiCount;
+            result.GpuNearCandidates = counters.NearLineCandidateCount;
+            result.GpuIgnoredOpaque = counters.IgnoredOpaqueCount;
+            result.GpuOverflow = counters.Overflow;
+
+            if (nearLineCandidatePixels.Count == 0)
+            {
+                result.HasStudentPixels = false;
+                result.RawCandidateCount = 0;
+                result.ErrorPosition = GetAveragePoint(shiftedStandardPixels);
+                return true;
+            }
+
+            result.HasStudentPixels = true;
+            using (ScoringPerf.ScopeDetailed(ScoringPerf.TitleKey($"AnswerCheck.CandidateFilterGpu#{standardLayer.layerNum}", ScoringPerf.CurrentTitleId), $"nearCandidates={nearLineCandidatePixels.Count};standard={shiftedStandardPixels.Count}"))
+            {
+                if (usePatternedLineMatch)
+                {
+                    nearLineCandidatePixels = FilterStraightLineBand(nearLineCandidatePixels, shiftedStandardPixels, mainAxis, result.Tolerance);
+                    nearLineCandidatePixels = FilterNeighborStandardLinePixels(nearLineCandidatePixels, standardLayer, result.BestOffset, shiftedStandardPixels, mainAxis, result.Tolerance);
+                }
+                else
+                {
+                    nearLineCandidatePixels = FilterStudentCandidateComponents(nearLineCandidatePixels, shiftedStandardPixels, result.Tolerance, standardLayer.layerNum);
+                    nearLineCandidatePixels = FilterStraightLineBand(nearLineCandidatePixels, shiftedStandardPixels, mainAxis, result.Tolerance);
+                    nearLineCandidatePixels = FilterNeighborStandardLinePixels(nearLineCandidatePixels, standardLayer, result.BestOffset, shiftedStandardPixels, mainAxis, result.Tolerance);
+                }
+            }
+
+            return CompleteLineMatchFromCandidates(result, standardLayer, shiftedStandardPixels, nearLineCandidatePixels, mainAxis, standardProjectedLength, usePatternedLineMatch);
+        }
+
+        private LineMatchResult EvaluateLineMatchCpuFallback(LayerManager studentLayer, LayerManager standardLayer)
         {
             LayerPixelCache studentCache = GetStudentPixelCache(studentLayer);
             List<PositionInt> studentPixels = studentCache.Pixels;
@@ -1998,7 +2435,19 @@ namespace jxzt
                 }
             }
 
-            if (studentCandidatePixels.Count == 0)
+            return CompleteLineMatchFromCandidates(result, standardLayer, shiftedStandardPixels, studentCandidatePixels, mainAxis, standardProjectedLength, usePatternedLineMatch);
+        }
+
+        private LineMatchResult CompleteLineMatchFromCandidates(
+            LineMatchResult result,
+            LayerManager standardLayer,
+            List<PositionInt> shiftedStandardPixels,
+            List<PositionInt> studentCandidatePixels,
+            Vector2 mainAxis,
+            float standardProjectedLength,
+            bool usePatternedLineMatch)
+        {
+            if (studentCandidatePixels == null || studentCandidatePixels.Count == 0)
             {
                 result.HasStudentPixels = false;
                 return result;
@@ -2012,7 +2461,7 @@ namespace jxzt
                 evidence = BuildLineStudentEvidence(studentCandidatePixels, shiftedStandardPixels, mainAxis, result.Tolerance, usePatternedLineMatch);
                 result.RawCandidateCount = evidence.RawCandidateCount;
                 result.CorePixelCount = evidence.CorePixels.Count;
-                result.IgnoredAuxiliaryPixelCount = evidence.IgnoredAuxiliaryPixels.Count;
+                result.IgnoredAuxiliaryPixelCount = evidence.GetIgnoredAuxiliaryCount();
                 result.ExtensionPixelCount = evidence.ExtensionPixels.Count;
                 result.TrueExtensionRatio = evidence.TrueExtensionRatio;
 
@@ -2021,7 +2470,7 @@ namespace jxzt
                 if (scoreStudentPixels.Count == 0)
                 {
                     result.HasStudentPixels = false;
-                    result.ExtraErrorPosition = evidence.IgnoredAuxiliaryPixels.Count > 0 ? GetAveragePoint(evidence.IgnoredAuxiliaryPixels) : result.ExtraErrorPosition;
+                    result.ExtraErrorPosition = GetLineEvidenceFallbackPosition(evidence, shiftedStandardPixels, result.ExtraErrorPosition);
                     return result;
                 }
             }
@@ -2179,6 +2628,15 @@ namespace jxzt
                 : Mathf.Max(0.32f, 1f - result.RightLimit + 0.08f);
             float shortLengthRatioLimit = isCurvedLineShape ? 0.62f : 0.78f;
             float shortExtraRatioLimit = isCurvedLineShape ? 0.72f : 0.65f;
+            if (IsHomeworkRelaxed())
+            {
+                shortMissingLimit = Mathf.Min(0.72f, shortMissingLimit + 0.10f);
+                if (!isCurvedLineShape)
+                {
+                    shortLengthRatioLimit = 0.68f;
+                }
+                shortExtraRatioLimit = 0.78f;
+            }
             result.IsTooShort = result.Recall >= result.ErrorLimit
                                 && (result.MissingRatio >= shortMissingLimit || lengthRatio < shortLengthRatioLimit)
                                 && result.ExtraRatio < shortExtraRatioLimit;
@@ -2186,10 +2644,11 @@ namespace jxzt
             if (evidence != null)
             {
                 float trueExtensionLongLimit = GetTrueExtensionLongLimit(standardProjectedLength, result.Tolerance);
+                float longLengthRatioLimit = IsHomeworkRelaxed() ? 1.18f : 1.08f;
                 result.IsTooLong = result.Recall >= result.RightLimit
                                    && evidence.ExtensionPixels.Count > 0
                                    && evidence.TrueExtensionRatio > trueExtensionLongLimit
-                                   && lengthRatio > 1.08f;
+                                   && lengthRatio > longLengthRatioLimit;
             }
             else
             {
@@ -2205,20 +2664,38 @@ namespace jxzt
         {
             if (!IsCurvedLineShape(standardLayer.lineshape))
             {
+                float p95Factor = IsHomeworkRelaxed() ? 2.1f : 1.5f;
                 return lineMatch.Recall >= lineMatch.RightLimit
                        && lineMatch.Precision >= lineMatch.PrecisionLimit
-                       && lineMatch.P95Distance <= lineMatch.Tolerance * 1.5f;
+                       && lineMatch.P95Distance <= lineMatch.Tolerance * p95Factor;
             }
 
+            float strictCurveDistanceFactor = IsHomeworkRelaxed() ? 2.6f : 2.0f;
+            float lenientCurveDistanceFactor = IsHomeworkRelaxed() ? 3.2f : 2.6f;
+            float lenientCurveLengthLimit = IsHomeworkRelaxed() ? 0.52f : 0.62f;
+            float lenientCurveExtraLimit = IsHomeworkRelaxed() ? 0.78f : 0.72f;
             bool strictCurveMatch = lineMatch.Recall >= lineMatch.RightLimit
                                     && lineMatch.Precision >= lineMatch.PrecisionLimit
-                                    && lineMatch.P95Distance <= lineMatch.Tolerance * 2.0f;
+                                    && lineMatch.P95Distance <= lineMatch.Tolerance * strictCurveDistanceFactor;
             bool lenientCurveMatch = lineMatch.Recall >= Mathf.Max(lineMatch.ErrorLimit, 0.32f)
                                      && lineMatch.Precision >= lineMatch.PrecisionLimit
-                                     && lineMatch.P95Distance <= lineMatch.Tolerance * 2.6f
-                                     && lineMatch.ProjectedLengthRatio >= 0.62f
-                                     && lineMatch.ExtraRatio < 0.72f;
+                                     && lineMatch.P95Distance <= lineMatch.Tolerance * lenientCurveDistanceFactor
+                                     && lineMatch.ProjectedLengthRatio >= lenientCurveLengthLimit
+                                     && lineMatch.ExtraRatio < lenientCurveExtraLimit;
             return strictCurveMatch || lenientCurveMatch;
+        }
+
+        private bool HasEnoughGeometryForLineTypeCheck(LineMatchResult lineMatch)
+        {
+            if (!IsHomeworkRelaxed())
+            {
+                return lineMatch.StudentLineType != linetype.unknown;
+            }
+
+            return lineMatch.StudentLineType != linetype.unknown
+                   && lineMatch.Recall >= lineMatch.RightLimit * 0.80f
+                   && lineMatch.Precision >= lineMatch.PrecisionLimit * 0.75f
+                   && lineMatch.P95Distance <= lineMatch.Tolerance * 2.3f;
         }
 
         private bool IsCurvedLineShape(lineshape shape)
@@ -2250,12 +2727,18 @@ namespace jxzt
 
         private ErrorReson GetPatternedLineError(LineMatchResult lineMatch, linetype standardLineType)
         {
-            if (lineMatch.StudentLineType == linetype.unknown || lineMatch.GeometryPrecision < PatternGeometryLimit)
+            float patternGeometryLimit = GetPatternGeometryLimit();
+            float patternMinLengthRatio = GetPatternMinLengthRatio();
+            float patternMaxLengthRatio = GetPatternMaxLengthRatio();
+            float patternMaxExtraSpanRatio = GetPatternMaxExtraSpanRatio();
+            bool lineTypeCompatible = IsPatternedLineTypeCompatible(standardLineType, lineMatch.StudentLineType);
+
+            if (lineMatch.StudentLineType == linetype.unknown || lineMatch.GeometryPrecision < patternGeometryLimit)
             {
                 return ErrorReson.图线不在或偏离正确位置;
             }
 
-            if (!IsPatternedLineTypeCompatible(standardLineType, lineMatch.StudentLineType))
+            if (!lineTypeCompatible && HasEnoughGeometryForLineTypeCheck(lineMatch))
             {
                 return ErrorReson.线型使用错误;
             }
@@ -2271,10 +2754,11 @@ namespace jxzt
             }
 
             if (lineMatch.MacroCoverage >= lineMatch.MacroCoverageLimit
-                && lineMatch.PatternLengthRatio >= PatternMinLengthRatio
-                && lineMatch.PatternLengthRatio <= PatternMaxLengthRatio
+                && lineTypeCompatible
+                && lineMatch.PatternLengthRatio >= patternMinLengthRatio
+                && lineMatch.PatternLengthRatio <= patternMaxLengthRatio
                 && lineMatch.PatternEndpointMiss <= lineMatch.PatternEndpointLimit
-                && lineMatch.PatternExtraSpanRatio <= PatternMaxExtraSpanRatio)
+                && lineMatch.PatternExtraSpanRatio <= patternMaxExtraSpanRatio)
             {
                 return ErrorReson.正确;
             }
@@ -2290,6 +2774,10 @@ namespace jxzt
             ProjectionStats studentStats = GetProjectionStats(studentEvidencePixels, axis);
             float standardLength = Mathf.Max(1f, Mathf.Max(standardStats.Length, standardProjectedLength));
             float endpointLimit = GetPatternEndpointLimit(standardLength, result.Tolerance);
+            float patternGeometryLimit = GetPatternGeometryLimit();
+            float patternMinLengthRatio = GetPatternMinLengthRatio();
+            float patternMaxLengthRatio = GetPatternMaxLengthRatio();
+            float patternMaxExtraSpanRatio = GetPatternMaxExtraSpanRatio();
             float bandWidth = result.Tolerance * 2.2f;
             Vector2 center = GetAveragePoint(shiftedStandardPixels);
             Vector2 normal = new Vector2(-axis.y, axis.x).normalized;
@@ -2359,17 +2847,17 @@ namespace jxzt
             result.ExtraErrorPosition = evidence != null && evidence.ExtensionPixels.Count > 0
                 ? GetAveragePoint(evidence.ExtensionPixels)
                 : (extraStudentPixels.Count > 0 ? GetAveragePoint(extraStudentPixels) : GetAveragePoint(studentEvidencePixels));
-            result.IsTooShort = result.GeometryPrecision >= PatternGeometryLimit
+            result.IsTooShort = result.GeometryPrecision >= patternGeometryLimit
                                 && (result.MacroCoverage < result.MacroCoverageLimit
-                                    || result.PatternLengthRatio < PatternMinLengthRatio
+                                    || result.PatternLengthRatio < patternMinLengthRatio
                                     || result.PatternEndpointMiss > endpointLimit)
-                                && result.PatternExtraSpanRatio <= PatternMaxExtraSpanRatio * 1.5f;
-            result.IsTooLong = result.GeometryPrecision >= PatternGeometryLimit
+                                && result.PatternExtraSpanRatio <= patternMaxExtraSpanRatio * 1.5f;
+            result.IsTooLong = result.GeometryPrecision >= patternGeometryLimit
                                && evidence != null
                                && evidence.ExtensionPixels.Count > 0
-                               && (result.PatternLengthRatio > PatternMaxLengthRatio
-                                   || result.PatternExtraSpanRatio > PatternMaxExtraSpanRatio);
-            result.ErrorPosition = result.GeometryPrecision < PatternGeometryLimit
+                               && (result.PatternLengthRatio > patternMaxLengthRatio
+                                   || result.PatternExtraSpanRatio > patternMaxExtraSpanRatio);
+            result.ErrorPosition = result.GeometryPrecision < patternGeometryLimit
                 ? result.ExtraErrorPosition
                 : (result.IsTooLong ? result.ExtraErrorPosition : result.MissingErrorPosition);
 
@@ -2406,6 +2894,10 @@ namespace jxzt
             {
                 RawCandidateCount = studentCandidatePixels == null ? 0 : studentCandidatePixels.Count
             };
+            if (storeIgnoredAuxiliaryPixelsForDebug)
+            {
+                evidence.IgnoredAuxiliaryPixels = new List<PositionInt>();
+            }
 
             if (studentCandidatePixels == null || studentCandidatePixels.Count == 0
                 || shiftedStandardPixels == null || shiftedStandardPixels.Count == 0)
@@ -2493,7 +2985,14 @@ namespace jxzt
                 long key = PointKey(point.x, point.y);
                 if (!coreKeys.Contains(key) && !extensionKeys.Contains(key))
                 {
-                    evidence.IgnoredAuxiliaryPixels.Add(point);
+                    if (storeIgnoredAuxiliaryPixelsForDebug)
+                    {
+                        evidence.IgnoredAuxiliaryPixels.Add(point);
+                    }
+                    else
+                    {
+                        evidence.IgnoredAuxiliaryCount++;
+                    }
                 }
             }
 
@@ -2570,15 +3069,67 @@ namespace jxzt
             }
         }
 
+        private Vector2 GetLineEvidenceFallbackPosition(LineStudentEvidence evidence, List<PositionInt> shiftedStandardPixels, Vector2 fallback)
+        {
+            if (evidence != null)
+            {
+                if (evidence.IgnoredAuxiliaryPixels != null && evidence.IgnoredAuxiliaryPixels.Count > 0)
+                {
+                    return GetAveragePoint(evidence.IgnoredAuxiliaryPixels);
+                }
+
+                if (evidence.ExtensionPixels != null && evidence.ExtensionPixels.Count > 0)
+                {
+                    return GetAveragePoint(evidence.ExtensionPixels);
+                }
+
+                if (evidence.CorePixels != null && evidence.CorePixels.Count > 0)
+                {
+                    return GetAveragePoint(evidence.CorePixels);
+                }
+            }
+
+            return shiftedStandardPixels != null && shiftedStandardPixels.Count > 0
+                ? GetAveragePoint(shiftedStandardPixels)
+                : fallback;
+        }
+
+        private bool IsHomeworkRelaxed()
+        {
+            return scoringStrictness == ScoringStrictness.HomeworkRelaxed;
+        }
+
+        private float GetPatternGeometryLimit()
+        {
+            return IsHomeworkRelaxed() ? 0.55f : PatternGeometryLimit;
+        }
+
+        private float GetPatternMinLengthRatio()
+        {
+            return IsHomeworkRelaxed() ? 0.65f : PatternMinLengthRatio;
+        }
+
+        private float GetPatternMaxLengthRatio()
+        {
+            return IsHomeworkRelaxed() ? 1.30f : PatternMaxLengthRatio;
+        }
+
+        private float GetPatternMaxExtraSpanRatio()
+        {
+            return IsHomeworkRelaxed() ? 0.28f : PatternMaxExtraSpanRatio;
+        }
+
         private float GetTrueExtensionLongLimit(float standardProjectedLength, float tolerance)
         {
             float length = Mathf.Max(1f, standardProjectedLength);
-            return Mathf.Clamp(Mathf.Max(0.16f, tolerance * 4f / length), 0.16f, 0.28f);
+            float limit = Mathf.Clamp(Mathf.Max(0.16f, tolerance * 4f / length), 0.16f, 0.28f);
+            return IsHomeworkRelaxed() ? limit + 0.08f : limit;
         }
 
         private float GetPatternEndpointLimit(float standardLength, float tolerance)
         {
-            return Mathf.Clamp(Mathf.Max(tolerance * 2f, standardLength * 0.08f), 12f, 36f);
+            float limit = Mathf.Clamp(Mathf.Max(tolerance * 2f, standardLength * 0.08f), 12f, 36f);
+            return IsHomeworkRelaxed() ? limit * 1.25f : limit;
         }
 
         private int GetPatternMacroBinCount(float standardLength, float tolerance)
@@ -2589,17 +3140,27 @@ namespace jxzt
 
         private float GetPatternMacroCoverageLimit(float standardLength)
         {
+            float limit;
             if (standardLength < 80f)
             {
-                return 0.60f;
+                limit = 0.60f;
             }
-
-            if (standardLength < 160f)
+            else if (standardLength < 160f)
             {
-                return 0.68f;
+                limit = 0.68f;
+            }
+            else
+            {
+                limit = 0.72f;
             }
 
-            return 0.72f;
+            if (!IsHomeworkRelaxed())
+            {
+                return limit;
+            }
+
+            float relaxedDelta = standardLength < 160f ? 0.10f : 0.12f;
+            return Mathf.Max(0.45f, limit - relaxedDelta);
         }
 
         private Vector2 GetProjectionEdgePoint(List<PositionInt> pixels, Vector2 axis, float targetProjection)
@@ -2790,6 +3351,16 @@ namespace jxzt
                 }
             }
 
+            if (IsHomeworkRelaxed())
+            {
+                return new LineLimits
+                {
+                    errorLimit = Mathf.Clamp(errorLimit - 0.04f, 0.14f, 0.40f),
+                    rightLimit = Mathf.Clamp(rightLimit + 0.15f, 0.48f, 0.70f),
+                    precisionLimit = 0.35f
+                };
+            }
+
             return new LineLimits
             {
                 errorLimit = Mathf.Clamp(errorLimit, 0.18f, 0.45f),
@@ -2837,6 +3408,63 @@ namespace jxzt
             Color32[] studentSource = student.Source;
             int studentWidth = student.Width;
             int studentHeight = student.Height;
+            int sourceLength = studentSource.Length;
+            int bestOverlap = -1;
+            Vector2Int bestOffset = Vector2Int.zero;
+            for (int y = -maxOffset; y <= maxOffset; y += step)
+            {
+                for (int x = -maxOffset; x <= maxOffset; x += step)
+                {
+                    int overlap = 0;
+                    for (int i = 0; i < standardCount; i++)
+                    {
+                        PositionInt point = standardPixels[i];
+                        int sx = point.x + x;
+                        int sy = point.y + y;
+                        if ((uint)sx < (uint)studentWidth && (uint)sy < (uint)studentHeight)
+                        {
+                            int index = sx + sy * studentWidth;
+                            if (index < sourceLength && studentSource[index].a > 0)
+                            {
+                                overlap++;
+                            }
+                        }
+
+                        int remaining = standardCount - i - 1;
+                        if (overlap + remaining <= bestOverlap)
+                        {
+                            break;
+                        }
+                    }
+
+                    if (overlap > bestOverlap)
+                    {
+                        bestOverlap = overlap;
+                        bestOffset = new Vector2Int(x, y);
+                        if (bestOverlap >= standardCount * 0.995f)
+                        {
+                            return bestOffset;
+                        }
+                    }
+                }
+            }
+            return bestOffset;
+        }
+
+        private Vector2Int FindBestOffsetFromSource(List<PositionInt> standardPixels, LayerManager studentLayer, int maxOffset, int step)
+        {
+            int standardCount = standardPixels == null ? 0 : standardPixels.Count;
+            if (standardCount == 0
+                || studentLayer == null
+                || studentLayer.LayerSize == null
+                || studentLayer.Image_colors == null)
+            {
+                return Vector2Int.zero;
+            }
+
+            Color32[] studentSource = studentLayer.Image_colors;
+            int studentWidth = studentLayer.LayerSize.width;
+            int studentHeight = studentLayer.LayerSize.height;
             int sourceLength = studentSource.Length;
             int bestOverlap = -1;
             Vector2Int bestOffset = Vector2Int.zero;
@@ -2975,11 +3603,202 @@ namespace jxzt
             return $"{GetBoundsWidth(bounds)}x{GetBoundsHeight(bounds)}";
         }
 
+        private bool CanTryGpuLineEvidencePrefilter(LayerManager studentLayer, LayerManager standardLayer, out string failReason)
+        {
+            failReason = string.Empty;
+            if (!useGpuLineEvidencePrefilter)
+            {
+                failReason = "GPU预筛已关闭";
+                return false;
+            }
+
+            if (standardLayer == null || standardLayer.lineshape != lineshape.直线)
+            {
+                failReason = "非直线图层暂不使用GPU线预筛";
+                return false;
+            }
+
+            if (studentLayer == null || studentLayer.LayerSize == null || studentLayer.Image_colors == null)
+            {
+                failReason = "学生图层或 Image_colors 为空";
+                return false;
+            }
+
+            if (lineEvidencePrefilterShader == null)
+            {
+                failReason = "LineEvidencePrefilter ComputeShader 未挂载";
+                return false;
+            }
+
+            if (!SystemInfo.supportsComputeShaders)
+            {
+                failReason = "当前平台不支持 ComputeShader";
+                return false;
+            }
+
+            return true;
+        }
+
+        private bool TryGpuPrefilterLineCandidates(
+            LayerManager studentLayer,
+            PixelBounds candidateBounds,
+            Vector2 axis,
+            Vector2 center,
+            float standardMin,
+            float standardMax,
+            float bandWidth,
+            float endpointSlack,
+            float extensionSearchSlack,
+            string context,
+            out List<PositionInt> nearLineCandidatePixels,
+            out GpuLineEvidenceCounters counters,
+            out string failReason)
+        {
+            nearLineCandidatePixels = new List<PositionInt>();
+            counters = new GpuLineEvidenceCounters();
+            failReason = string.Empty;
+
+            long roiPixels = GetClampedBoundsArea(candidateBounds, studentLayer);
+            counters.RoiPixelCount = roiPixels > int.MaxValue ? int.MaxValue : (int)roiPixels;
+            if (roiPixels <= 0)
+            {
+                failReason = "GPU预筛 ROI 为空";
+                return false;
+            }
+
+            if (roiPixels < Mathf.Max(1, gpuPrefilterMinRoiPixels))
+            {
+                failReason = $"ROI小于GPU阈值({roiPixels}<{gpuPrefilterMinRoiPixels})";
+                return false;
+            }
+
+            if (!TryGetGpuLineEvidencePrefilter(out GpuLineEvidencePrefilter prefilter, out failReason))
+            {
+                return false;
+            }
+
+            bool ok = prefilter.TryPrefilterLinePixels(
+                studentLayer,
+                candidateBounds,
+                axis,
+                center,
+                standardMin,
+                standardMax,
+                bandWidth,
+                endpointSlack,
+                extensionSearchSlack,
+                Mathf.Max(1, gpuMaxPrefilterOutputPixels),
+                out nearLineCandidatePixels,
+                out counters,
+                out failReason);
+
+            if (!ok)
+            {
+                failReason = string.IsNullOrEmpty(failReason) ? $"GPU预筛失败({context})" : failReason;
+            }
+
+            return ok;
+        }
+
+        private bool TryGetGpuLineEvidencePrefilter(out GpuLineEvidencePrefilter prefilter, out string failReason)
+        {
+            prefilter = null;
+            failReason = string.Empty;
+            if (lineEvidencePrefilterShader == null)
+            {
+                failReason = "LineEvidencePrefilter ComputeShader 未挂载";
+                return false;
+            }
+
+            if (_gpuLineEvidencePrefilter == null || !_gpuLineEvidencePrefilter.IsForShader(lineEvidencePrefilterShader))
+            {
+                _gpuLineEvidencePrefilter?.Dispose();
+                _gpuLineEvidencePrefilter = new GpuLineEvidencePrefilter(lineEvidencePrefilterShader);
+            }
+
+            prefilter = _gpuLineEvidencePrefilter;
+            return true;
+        }
+
+        private void GetLinePrefilterParameters(
+            List<PositionInt> shiftedStandardPixels,
+            Vector2 axis,
+            float tolerance,
+            out Vector2 center,
+            out ProjectionStats standardStats,
+            out float bandWidth,
+            out float endpointSlack,
+            out float extensionSearchSlack)
+        {
+            axis = axis.sqrMagnitude > 0.0001f ? axis.normalized : Vector2.right;
+            standardStats = GetProjectionStats(shiftedStandardPixels, axis);
+            float standardLength = Mathf.Max(1f, standardStats.Length);
+            center = GetAveragePoint(shiftedStandardPixels);
+            bandWidth = Mathf.Max(4f, tolerance * 3f);
+            endpointSlack = Mathf.Clamp(Mathf.Max(tolerance * 1.4f, standardLength * 0.035f), 3f, 18f);
+            extensionSearchSlack = Mathf.Clamp(Mathf.Max(tolerance * 6f, standardLength * 0.25f), 12f, Mathf.Max(96f, standardLength * 0.45f));
+        }
+
+        private long GetClampedBoundsArea(PixelBounds bounds, LayerManager layer)
+        {
+            if (layer == null || layer.LayerSize == null)
+            {
+                return 0;
+            }
+
+            PixelBounds clamped = ClampBoundsToLayer(bounds, layer.LayerSize.width, layer.LayerSize.height);
+            return GetBoundsArea(clamped);
+        }
+
+        private static PixelBounds ClampBoundsToLayer(PixelBounds bounds, int width, int height)
+        {
+            if (width <= 0 || height <= 0)
+            {
+                return new PixelBounds { minX = 0, maxX = -1, minY = 0, maxY = -1 };
+            }
+
+            return new PixelBounds
+            {
+                minX = Mathf.Clamp(bounds.minX, 0, width - 1),
+                maxX = Mathf.Clamp(bounds.maxX, 0, width - 1),
+                minY = Mathf.Clamp(bounds.minY, 0, height - 1),
+                maxY = Mathf.Clamp(bounds.maxY, 0, height - 1)
+            };
+        }
+
+        private void LogGpuPrefilterFallbackOnce(string context, string reason)
+        {
+            if (string.IsNullOrEmpty(reason) || IsQuietGpuFallbackReason(reason))
+            {
+                return;
+            }
+
+            string key = reason;
+            if (_gpuPrefilterWarningKeys.Add(key))
+            {
+                Debug.LogWarning($"[AnswerCheck] GPU像素预筛回退CPU context={context}, reason={reason}");
+            }
+        }
+
+        private bool IsQuietGpuFallbackReason(string reason)
+        {
+            return reason.Contains("GPU预筛已关闭")
+                   || reason.Contains("非直线")
+                   || reason.Contains("ROI小于GPU阈值");
+        }
+
         private float GetLineTolerance(List<PositionInt> standardPixels)
         {
             PixelBounds bounds = GetBounds(standardPixels);
             float diagonal = Vector2.Distance(new Vector2(bounds.minX, bounds.minY), new Vector2(bounds.maxX, bounds.maxY));
-            return Mathf.Clamp(diagonal * 0.006f + 6f, 8f, 18f);
+            float baseTolerance = Mathf.Clamp(diagonal * 0.006f + 6f, 8f, 18f);
+            if (!IsHomeworkRelaxed())
+            {
+                return baseTolerance;
+            }
+
+            float scale = Mathf.Clamp(homeworkToleranceScale, 1f, 1.6f);
+            return Mathf.Clamp(baseTolerance * scale, 10f, 24f);
         }
 
         private PixelBounds GetBounds(List<PositionInt> pixels)
