@@ -1068,6 +1068,11 @@ namespace jxzt
             public float Coverage;
             public float LengthRatio;
             public float ExtraRatio;
+            public int RawCandidateCount;
+            public int AssignedCoreCount;
+            public int IgnoredAuxiliaryCount;
+            public int ExtensionPixelCount;
+            public float TrueExtensionRatio;
         }
 
         private sealed class LayerPixelCache
@@ -1618,6 +1623,7 @@ namespace jxzt
             List<PositionInt>[] assignedPixels = new List<PositionInt>[segmentCount];
             List<PositionInt>[] extensionPixels = new List<PositionInt>[segmentCount];
             List<PositionInt>[] shiftedSegmentPixels = new List<PositionInt>[segmentCount];
+            LineStudentEvidence[] segmentEvidence = new LineStudentEvidence[segmentCount];
 
             List<PositionInt> shiftedGroupPixels = new List<PositionInt>(group.StandardPixels.Count);
             for (int i = 0; i < segmentCount; i++)
@@ -1633,7 +1639,13 @@ namespace jxzt
                 shiftedGroupPixels.AddRange(shiftedSegmentPixels[i]);
             }
 
-            int candidateExpand = Mathf.CeilToInt(group.Tolerance * 8f);
+            if (shiftedGroupPixels.Count == 0)
+            {
+                return results;
+            }
+
+            float maxSegmentLength = segmentCount > 0 ? length.Max() : 0f;
+            int candidateExpand = Mathf.CeilToInt(group.Tolerance * 8f + maxSegmentLength * 0.25f);
             PixelBounds candidateBounds = ExpandBounds(GetBounds(shiftedGroupPixels), candidateExpand);
             List<PositionInt> candidatePixels = studentCache.GetPixelsInsideBounds(candidateBounds);
             if (candidatePixels.Count == 0)
@@ -1641,67 +1653,29 @@ namespace jxzt
                 return results;
             }
 
-            float finiteDistanceLimit = group.Tolerance * 2.5f;
-            float finiteDistanceLimitSq = finiteDistanceLimit * finiteDistanceLimit;
-            float extensionBandLimit = group.Tolerance * 2.2f;
-            float extensionBandLimitSq = extensionBandLimit * extensionBandLimit;
-            List<PositionInt> inGroupPixels = new List<PositionInt>();
-            List<PositionInt> extraOutsideGroupPixels = new List<PositionInt>();
+            List<PositionInt> groupCorePixels = new List<PositionInt>();
+            List<PositionInt> groupExtensionPixels = new List<PositionInt>();
+            HashSet<long> groupCoreKeys = new HashSet<long>();
+            HashSet<long> groupExtensionKeys = new HashSet<long>();
+            float maxTrueExtensionRatio = 0f;
 
-            foreach (var point in candidatePixels)
+            for (int i = 0; i < segmentCount; i++)
             {
-                Vector2 p = new Vector2(point.x, point.y);
-                int bestSegment = -1;
-                float bestDistanceSq = float.MaxValue;
-                for (int i = 0; i < segmentCount; i++)
-                {
-                    float distanceSq = DistancePointToSegmentSq(p, p0[i], p1[i], out _);
-                    if (distanceSq < bestDistanceSq)
-                    {
-                        bestDistanceSq = distanceSq;
-                        bestSegment = i;
-                    }
-                }
-
-                if (bestSegment >= 0 && bestDistanceSq <= finiteDistanceLimitSq)
-                {
-                    assignedPixels[bestSegment].Add(point);
-                    inGroupPixels.Add(point);
-                    continue;
-                }
-
-                int extensionSegment = -1;
-                float bestExtensionDistanceSq = float.MaxValue;
-                for (int i = 0; i < segmentCount; i++)
-                {
-                    GetPointSegmentProjection(p, p0[i], axis[i], out float projection, out float perpendicularDistanceSq);
-                    float extensionSlack = Mathf.Max(group.Tolerance * 6f, length[i] * 0.22f);
-                    bool outsideSegment = projection < 0f || projection > length[i];
-                    float overrun = projection < 0f ? -projection : projection - length[i];
-                    if (outsideSegment
-                        && overrun <= extensionSlack
-                        && perpendicularDistanceSq <= extensionBandLimitSq
-                        && perpendicularDistanceSq < bestExtensionDistanceSq)
-                    {
-                        bestExtensionDistanceSq = perpendicularDistanceSq;
-                        extensionSegment = i;
-                    }
-                }
-
-                if (extensionSegment >= 0)
-                {
-                    extensionPixels[extensionSegment].Add(point);
-                }
-                else
-                {
-                    extraOutsideGroupPixels.Add(point);
-                }
+                PolylineSegmentGuide segment = group.Segments[i];
+                List<PositionInt> segmentCandidates = GetPolylineSegmentCandidatePixels(candidatePixels, p0[i], p1[i], axis[i], length[i], group.Tolerance);
+                segmentEvidence[i] = BuildLineStudentEvidence(segmentCandidates, shiftedSegmentPixels[i], axis[i], group.Tolerance, IsPatternedLineType(segment.Layer.lineType));
+                assignedPixels[i] = segmentEvidence[i].CorePixels;
+                extensionPixels[i] = segmentEvidence[i].ExtensionPixels;
+                AddUniquePixels(assignedPixels[i], groupCorePixels, groupCoreKeys);
+                AddUniquePixels(extensionPixels[i], groupExtensionPixels, groupExtensionKeys);
+                maxTrueExtensionRatio = Mathf.Max(maxTrueExtensionRatio, segmentEvidence[i].TrueExtensionRatio);
             }
 
             LineLimits limits = GetLineLimits(group.Segments[0].Layer);
-            float groupPrecision = candidatePixels.Count == 0 ? 0f : inGroupPixels.Count / (float)candidatePixels.Count;
-            float groupExtraRatio = 1f - groupPrecision;
-            Vector2 groupExtraPosition = extraOutsideGroupPixels.Count > 0 ? GetAveragePoint(extraOutsideGroupPixels) : Vector2.zero;
+            int groupEvidenceCount = groupCorePixels.Count + groupExtensionPixels.Count;
+            float groupPrecision = groupEvidenceCount == 0 ? 0f : groupCorePixels.Count / (float)groupEvidenceCount;
+            float groupExtraRatio = maxTrueExtensionRatio;
+            Vector2 groupExtraPosition = groupExtensionPixels.Count > 0 ? GetAveragePoint(groupExtensionPixels) : Vector2.zero;
 
             Dictionary<int, PolylineSegmentResult> segmentResults = new Dictionary<int, PolylineSegmentResult>();
             for (int i = 0; i < segmentCount; i++)
@@ -1709,6 +1683,7 @@ namespace jxzt
                 PolylineSegmentGuide segment = group.Segments[i];
                 float coverage = GetSegmentCoverage(assignedPixels[i], p0[i], axis[i], length[i], group.Tolerance, out Vector2 missingPosition);
                 float extraRatio = GetSegmentExtraRatio(assignedPixels[i], extensionPixels[i], p0[i], axis[i], length[i], group.Tolerance, out Vector2 extraPosition, out float lengthRatio);
+                float trueExtensionRatio = segmentEvidence[i] != null ? segmentEvidence[i].TrueExtensionRatio : 0f;
                 linetype studentType = assignedPixels[i].Count > 0
                     ? RecognizeLineTypeByProjection(assignedPixels[i], axis[i], segment.Layer.lineType == linetype.实线, length[i])
                     : linetype.unknown;
@@ -1730,7 +1705,9 @@ namespace jxzt
                     error = ErrorReson.线型使用错误;
                     errorPosition = assignedPixels[i].Count > 0 ? GetAveragePoint(assignedPixels[i]) : errorPosition;
                 }
-                else if (extraRatio > 0.12f && lengthRatio > 1.12f)
+                else if (extensionPixels[i].Count > 0
+                         && trueExtensionRatio > GetTrueExtensionLongLimit(length[i], group.Tolerance)
+                         && lengthRatio > 1.08f)
                 {
                     error = ErrorReson.图线过长;
                     errorPosition = extraPosition;
@@ -1753,13 +1730,18 @@ namespace jxzt
                     StudentLineType = studentType == linetype.unknown ? group.LineType : studentType,
                     Coverage = coverage,
                     LengthRatio = lengthRatio,
-                    ExtraRatio = extraRatio
+                    ExtraRatio = extraRatio,
+                    RawCandidateCount = segmentEvidence[i]?.RawCandidateCount ?? 0,
+                    AssignedCoreCount = assignedPixels[i].Count,
+                    IgnoredAuxiliaryCount = segmentEvidence[i]?.IgnoredAuxiliaryPixels.Count ?? 0,
+                    ExtensionPixelCount = extensionPixels[i].Count,
+                    TrueExtensionRatio = trueExtensionRatio
                 };
             }
 
             if (ScoringPerf.VerboseLayerLogs)
             {
-                string detail = string.Join("; ", segmentResults.Select(kv => $"#{kv.Key}:{kv.Value.Error},cov={kv.Value.Coverage:F2},span={kv.Value.LengthRatio:F2},extra={kv.Value.ExtraRatio:F2}"));
+                string detail = string.Join("; ", segmentResults.Select(kv => $"#{kv.Key}:{kv.Value.Error},rawCandidates={kv.Value.RawCandidateCount},assignedCore={kv.Value.AssignedCoreCount},ignoredAuxiliary={kv.Value.IgnoredAuxiliaryCount},extensionPixels={kv.Value.ExtensionPixelCount},trueExtensionRatio={kv.Value.TrueExtensionRatio:F3},coverage={kv.Value.Coverage:F2},lengthRatio={kv.Value.LengthRatio:F2},studentType={kv.Value.StudentLineType}"));
                 Debug.Log($"[AnswerCheck] 折线组判分 group={group.GroupId}, precision={groupPrecision:F3}, extra={groupExtraRatio:F3}, offset={bestOffset}, {detail}");
             }
 
@@ -1784,11 +1766,44 @@ namespace jxzt
                     StudentLineType = segment.Layer.lineType,
                     Coverage = 0f,
                     LengthRatio = 0f,
-                    ExtraRatio = 0f
+                    ExtraRatio = 0f,
+                    RawCandidateCount = 0,
+                    AssignedCoreCount = 0,
+                    IgnoredAuxiliaryCount = 0,
+                    ExtensionPixelCount = 0,
+                    TrueExtensionRatio = 0f
                 };
             }
 
             return results;
+        }
+
+        private List<PositionInt> GetPolylineSegmentCandidatePixels(List<PositionInt> candidatePixels, Vector2 p0, Vector2 p1, Vector2 axis, float length, float tolerance)
+        {
+            List<PositionInt> result = new List<PositionInt>();
+            if (candidatePixels == null || candidatePixels.Count == 0 || length <= 0f)
+            {
+                return result;
+            }
+
+            axis = axis.sqrMagnitude > 0.0001f ? axis.normalized : Vector2.right;
+            float bandLimit = Mathf.Max(4f, tolerance * 3f);
+            float bandLimitSq = bandLimit * bandLimit;
+            float extensionSlack = Mathf.Clamp(Mathf.Max(tolerance * 6f, length * 0.25f), 12f, Mathf.Max(96f, length * 0.45f));
+            foreach (var point in candidatePixels)
+            {
+                Vector2 p = new Vector2(point.x, point.y);
+                GetPointSegmentProjection(p, p0, axis, out float projection, out float perpendicularDistanceSq);
+                bool inExtendedSpan = projection >= -extensionSlack && projection <= length + extensionSlack;
+                bool nearExtendedLine = inExtendedSpan && perpendicularDistanceSq <= bandLimitSq;
+                bool nearSegment = DistancePointToSegmentSq(p, p0, p1, out _) <= bandLimitSq;
+                if (nearExtendedLine || nearSegment)
+                {
+                    result.Add(point);
+                }
+            }
+
+            return result;
         }
 
         private float GetSegmentCoverage(List<PositionInt> pixels, Vector2 p0, Vector2 axis, float length, float tolerance, out Vector2 missingPosition)
@@ -2405,7 +2420,7 @@ namespace jxzt
             Vector2 normal = new Vector2(-axis.y, axis.x).normalized;
             float bandWidth = Mathf.Max(1f, tolerance * 1.6f);
             float endpointSlack = Mathf.Clamp(Mathf.Max(tolerance * 1.4f, standardLength * 0.035f), 3f, 18f);
-            float extensionSearchSlack = Mathf.Clamp(Mathf.Max(tolerance * 6f, standardLength * 0.25f), 12f, 96f);
+            float extensionSearchSlack = Mathf.Clamp(Mathf.Max(tolerance * 6f, standardLength * 0.25f), 12f, Mathf.Max(96f, standardLength * 0.45f));
             float minAlignedCoreSpan = Mathf.Min(standardLength * 0.18f, Mathf.Max(tolerance * 6f, 24f));
 
             HashSet<long> coreKeys = new HashSet<long>();
@@ -2449,10 +2464,15 @@ namespace jxzt
 
                 bool alignedWithStandard = IsComponentAlignedWithAxis(component, axis, tolerance);
                 float coreSpan = GetProjectedLength(coreCandidates, axis);
+                float coreNormalSpan = GetNormalSpan(coreCandidates, axis);
+                bool fragmentedCoreLooksDirectional = allowFragmentedCore
+                                                      && coreCandidates.Count >= 2
+                                                      && (coreSpan >= tolerance * 1.5f
+                                                          || (coreNormalSpan > 0.001f && coreSpan >= coreNormalSpan * 1.4f));
                 bool keepCore = coreCandidates.Count > 0
                                 && (alignedWithStandard
                                     || coreSpan >= minAlignedCoreSpan
-                                    || (allowFragmentedCore && coreCandidates.Count >= 2));
+                                    || fragmentedCoreLooksDirectional);
 
                 if (!keepCore)
                 {
