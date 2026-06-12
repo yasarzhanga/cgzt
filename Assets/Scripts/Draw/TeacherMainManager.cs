@@ -2002,40 +2002,42 @@ namespace jxzt
                 }
             }
             var answerCheck = cameraCompare_btn.transform.GetComponent<AnswerCheck>();
-            ScoringPerf.Start(ScoringPerf.TitleKey("AnswerCheck", _currentTitleIdForUpload), $"layers={answerCheck.standardlayer_manager.Count};image={Path.GetFileName(PicProgress.instance.argument1)}");
-            using (ScoringPerf.Scope(ScoringPerf.TitleKey("AnswerCheck.Setup", _currentTitleIdForUpload), $"layers={answerCheck.standardlayer_manager.Count}"))
-            {
-                answerCheck.Check();
-            }
-
-            // ========== 新增：设置进度回调 ==========
             int correctCount = 0;
             float lastProgressUpdate = 0f;
-
-            answerCheck.OnCheckProgress = null;
-            answerCheck.OnSingleCheckComplete = null;
-            // ====== 修改结束 ======
-
-            answerCheck.OnCheckProgress += (current, total, layer) =>
-            {
-                // 每0.1秒更新一次UI，避免过于频繁
-                if (Time.time - lastProgressUpdate < 0.1f) return;
-                lastProgressUpdate = Time.time;
-
-                // 计算预估剩余时间
-                float remaining = answerCheck.GetEstimatedRemainingTime(current, total);
-                string timeStr = remaining < 60 ? $"{remaining:F0}秒" : $"{remaining / 60:F1}分钟";
-                Debug.Log($"[判分进度] {current + 1}/{total} 正确:{correctCount} 预估剩余:{timeStr}");
-            };
-
-            answerCheck.OnSingleCheckComplete += (layer, isCorrect, error) =>
-            {
-                if (isCorrect) correctCount++;
-            };
-
             float c = 0;
-            // 使用快照避免遍历过程中集合被修改
-            var standardSnapshot = new List<LayerManager>(answerCheck.standardlayer_manager);
+            List<LayerManager> standardSnapshot = null;
+            ScoringPerf.Start(ScoringPerf.TitleKey("AnswerCheck", _currentTitleIdForUpload), $"layers={answerCheck.standardlayer_manager.Count};image={Path.GetFileName(PicProgress.instance.argument1)}");
+            try
+            {
+                using (ScoringPerf.Scope(ScoringPerf.TitleKey("AnswerCheck.Setup", _currentTitleIdForUpload), $"layers={answerCheck.standardlayer_manager.Count}"))
+                {
+                    answerCheck.Check();
+                }
+
+                // ========== 新增：设置进度回调 ==========
+                answerCheck.OnCheckProgress = null;
+                answerCheck.OnSingleCheckComplete = null;
+                // ====== 修改结束 ======
+
+                answerCheck.OnCheckProgress += (current, total, layer) =>
+                {
+                    // 每0.1秒更新一次UI，避免过于频繁
+                    if (Time.time - lastProgressUpdate < 0.1f) return;
+                    lastProgressUpdate = Time.time;
+
+                    // 计算预估剩余时间
+                    float remaining = answerCheck.GetEstimatedRemainingTime(current, total);
+                    string timeStr = remaining < 60 ? $"{remaining:F0}秒" : $"{remaining / 60:F1}分钟";
+                    Debug.Log($"[判分进度] {current + 1}/{total} 正确:{correctCount} 预估剩余:{timeStr}");
+                };
+
+                answerCheck.OnSingleCheckComplete += (layer, isCorrect, error) =>
+                {
+                    if (isCorrect) correctCount++;
+                };
+
+                // 使用快照避免遍历过程中集合被修改
+                standardSnapshot = new List<LayerManager>(answerCheck.standardlayer_manager);
                 for (int si = 0; si < standardSnapshot.Count; si++) {
                     var stand_answer = standardSnapshot[si];
                     long layerStart = ScoringPerf.NowMs;
@@ -2046,10 +2048,18 @@ namespace jxzt
                     StartCoroutine(AegisAnimation(6.5f, (c / standardSnapshot.Count), Time.realtimeSinceStartup));
                     yield return null;
                 }
-            
-            // 触发完成回调
-            answerCheck.OnAllCheckComplete?.Invoke(correctCount, (int)c);
-            ScoringPerf.End(ScoringPerf.TitleKey("AnswerCheck", _currentTitleIdForUpload), $"layers={(int)c};correct={correctCount}");
+
+                // 触发完成回调
+                answerCheck.OnAllCheckComplete?.Invoke(correctCount, (int)c);
+                ScoringPerf.End(ScoringPerf.TitleKey("AnswerCheck", _currentTitleIdForUpload), $"layers={(int)c};correct={correctCount}");
+            }
+            finally
+            {
+                answerCheck?.ReleaseScoringRuntimeResources(false);
+                Debug.Log("[MemoryCleanup] ReleaseScoringRuntimeResources called after one submission");
+            }
+            yield return null;
+
             bool isAllRight;
             using (ScoringPerf.Scope(ScoringPerf.TitleKey("PostCheck.DisplayErrors", _currentTitleIdForUpload), $"layers={standardSnapshot.Count}"))
             {

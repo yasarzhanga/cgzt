@@ -114,6 +114,8 @@ namespace jxzt
 
         public void ReleaseScoringRuntimeResources(bool releaseGpuResources = false)
         {
+            Debug.Log($"[MemoryCleanup] AnswerCheck.ReleaseScoringRuntimeResources releaseGpuResources={releaseGpuResources}");
+
             _studentPixelCache = null;
 
             _polylineResultCache?.Clear();
