@@ -109,12 +109,32 @@ namespace jxzt
 
         private void OnDestroy()
         {
-            _gpuLineEvidencePrefilter?.Dispose();
-            _gpuLineEvidencePrefilter = null;
+            ReleaseScoringRuntimeResources(true);
+        }
+
+        public void ReleaseScoringRuntimeResources(bool releaseGpuResources = false)
+        {
             _studentPixelCache = null;
+
+            _polylineResultCache?.Clear();
             _polylineResultCache = null;
+
+            _polylineGroups?.Clear();
             _polylineGroups = null;
+
+            _polylineGroupByLayerNum?.Clear();
             _polylineGroupByLayerNum = null;
+
+            if (releaseGpuResources)
+            {
+                _gpuLineEvidencePrefilter?.Dispose();
+                _gpuLineEvidencePrefilter = null;
+            }
+            else
+            {
+                _gpuLineEvidencePrefilter?.ReleaseStudentTextureOnly();
+                _gpuLineEvidencePrefilter?.TrimReadbackBuffer();
+            }
         }
 
         /// <summary>
@@ -180,6 +200,7 @@ namespace jxzt
                 float totalTime = Time.realtimeSinceStartup - _checkStartTime;
                 Debug.Log($"[判分完成] 总计: {totalCount}, 正确: {_correctCount}, 耗时: {totalTime:F2}秒");
                 OnAllCheckComplete?.Invoke(_correctCount, totalCount);
+                ReleaseScoringRuntimeResources(false);
             }
 
             return isCorrect;
@@ -559,7 +580,7 @@ namespace jxzt
                 layer.lineType = lineMatch.StudentLineType;
                 standardlayer.displayError_position = lineMatch.ErrorPosition;
 
-                string lineMatchDetail = $"recall={lineMatch.Recall:F3};precision={lineMatch.Precision:F3};missing={lineMatch.MissingRatio:F3};extra={lineMatch.ExtraRatio:F3};p95={lineMatch.P95Distance:F1};bestOffset={lineMatch.BestOffset};studentLineType={lineMatch.StudentLineType};standardLineType={standardlayer.lineType};patterned={lineMatch.IsPatternedMode};geometry={lineMatch.GeometryPrecision:F3};macro={lineMatch.MacroCoverage:F3};macroLimit={lineMatch.MacroCoverageLimit:F3};span={lineMatch.PatternLengthRatio:F3};endpointMiss={lineMatch.PatternEndpointMiss:F1};endpointLimit={lineMatch.PatternEndpointLimit:F1};extraSpan={lineMatch.PatternExtraSpanRatio:F3};lengthRatio={lineMatch.ProjectedLengthRatio:F3};rawCandidates={lineMatch.RawCandidateCount};corePixels={lineMatch.CorePixelCount};ignoredAuxiliary={lineMatch.IgnoredAuxiliaryPixelCount};extensionPixels={lineMatch.ExtensionPixelCount};trueExtensionRatio={lineMatch.TrueExtensionRatio:F3};scoringStrictness={scoringStrictness};prefilterMode={lineMatch.PrefilterMode};fullCpuFallbackUsed={lineMatch.FullCpuFallbackUsed};fallbackReason={lineMatch.PrefilterFallbackReason};gpuPrefilterEnabled={lineMatch.GpuPrefilterEnabled};gpuPrefilterUsed={lineMatch.GpuPrefilterUsed};gpuPrefilterFallbackReason={lineMatch.GpuPrefilterFallbackReason};roiPixels={lineMatch.GpuRoiPixels};rawOpaqueInRoi={lineMatch.GpuRawOpaqueInRoi};nearCandidates={lineMatch.GpuNearCandidates};ignoredOpaque={lineMatch.GpuIgnoredOpaque};overflow={lineMatch.GpuOverflow}";
+                string lineMatchDetail = $"layerNum={standardlayer.layerNum};lineshape={standardlayer.lineshape};recall={lineMatch.Recall:F3};precision={lineMatch.Precision:F3};missing={lineMatch.MissingRatio:F3};extra={lineMatch.ExtraRatio:F3};p95={lineMatch.P95Distance:F1};bestOffset={lineMatch.BestOffset};studentLineType={lineMatch.StudentLineType};standardLineType={standardlayer.lineType};patterned={lineMatch.IsPatternedMode};geometry={lineMatch.GeometryPrecision:F3};macro={lineMatch.MacroCoverage:F3};macroLimit={lineMatch.MacroCoverageLimit:F3};span={lineMatch.PatternLengthRatio:F3};endpointMiss={lineMatch.PatternEndpointMiss:F1};endpointLimit={lineMatch.PatternEndpointLimit:F1};extraSpan={lineMatch.PatternExtraSpanRatio:F3};lengthRatio={lineMatch.ProjectedLengthRatio:F3};rawCandidates={lineMatch.RawCandidateCount};corePixels={lineMatch.CorePixelCount};ignoredAuxiliary={lineMatch.IgnoredAuxiliaryPixelCount};extensionPixels={lineMatch.ExtensionPixelCount};trueExtensionRatio={lineMatch.TrueExtensionRatio:F3};scoringStrictness={scoringStrictness};prefilterMode={lineMatch.PrefilterMode};fullCpuFallbackUsed={lineMatch.FullCpuFallbackUsed};fallbackReason={lineMatch.PrefilterFallbackReason};gpuPrefilterEnabled={lineMatch.GpuPrefilterEnabled};gpuPrefilterUsed={lineMatch.GpuPrefilterUsed};gpuPrefilterFallbackReason={lineMatch.GpuPrefilterFallbackReason};roiPixels={lineMatch.GpuRoiPixels};rawOpaqueInRoi={lineMatch.GpuRawOpaqueInRoi};nearCandidates={lineMatch.GpuNearCandidates};ignoredOpaque={lineMatch.GpuIgnoredOpaque};overflow={lineMatch.GpuOverflow}";
                 ScoringPerf.LayerMatchMetric(standardlayer.layerNum, lineMatchDetail);
                 if (ScoringPerf.VerboseLayerLogs)
                 {
@@ -1851,7 +1872,7 @@ namespace jxzt
 
             if (ScoringPerf.VerboseLayerLogs)
             {
-                string detail = string.Join("; ", segmentResults.Select(kv => $"#{kv.Key}:{kv.Value.Error},rawCandidates={kv.Value.RawCandidateCount},assignedCore={kv.Value.AssignedCoreCount},ignoredAuxiliary={kv.Value.IgnoredAuxiliaryCount},extensionPixels={kv.Value.ExtensionPixelCount},trueExtensionRatio={kv.Value.TrueExtensionRatio:F3},coverage={kv.Value.Coverage:F2},lengthRatio={kv.Value.LengthRatio:F2},studentType={kv.Value.StudentLineType},prefilterMode={kv.Value.PrefilterMode},fullCpuFallbackUsed={kv.Value.FullCpuFallbackUsed},fallbackReason={kv.Value.GpuFallbackReason},roiPixels={kv.Value.GpuRoiPixels},rawOpaqueInRoi={kv.Value.GpuRawOpaqueInRoi},nearCandidates={kv.Value.GpuNearCandidates},ignoredOpaque={kv.Value.GpuIgnoredOpaque},overflow={kv.Value.GpuOverflow}"));
+                string detail = string.Join("; ", segmentResults.Select(kv => $"layerNum={kv.Key},lineshape={GetPolylineSegmentLineShapeForLog(group, kv.Key)},error={kv.Value.Error},rawCandidates={kv.Value.RawCandidateCount},assignedCore={kv.Value.AssignedCoreCount},ignoredAuxiliary={kv.Value.IgnoredAuxiliaryCount},extensionPixels={kv.Value.ExtensionPixelCount},trueExtensionRatio={kv.Value.TrueExtensionRatio:F3},coverage={kv.Value.Coverage:F2},lengthRatio={kv.Value.LengthRatio:F2},studentType={kv.Value.StudentLineType},prefilterMode={kv.Value.PrefilterMode},fullCpuFallbackUsed={kv.Value.FullCpuFallbackUsed},fallbackReason={kv.Value.GpuFallbackReason},roiPixels={kv.Value.GpuRoiPixels},rawOpaqueInRoi={kv.Value.GpuRawOpaqueInRoi},nearCandidates={kv.Value.GpuNearCandidates},ignoredOpaque={kv.Value.GpuIgnoredOpaque},overflow={kv.Value.GpuOverflow}"));
                 Debug.Log($"[AnswerCheck] 折线组判分 group={group.GroupId}, scoringStrictness={scoringStrictness}, prefilterMode={PrefilterModeFullCpu}, precision={groupPrecision:F3}, extra={groupExtraRatio:F3}, offset={bestOffset}, {detail}");
             }
 
@@ -2103,11 +2124,17 @@ namespace jxzt
 
             if (ScoringPerf.VerboseLayerLogs)
             {
-                string detail = string.Join("; ", results.Select(kv => $"#{kv.Key}:{kv.Value.Error},rawCandidates={kv.Value.RawCandidateCount},assignedCore={kv.Value.AssignedCoreCount},ignoredAuxiliary={kv.Value.IgnoredAuxiliaryCount},extensionPixels={kv.Value.ExtensionPixelCount},trueExtensionRatio={kv.Value.TrueExtensionRatio:F3},coverage={kv.Value.Coverage:F2},lengthRatio={kv.Value.LengthRatio:F2},studentType={kv.Value.StudentLineType},prefilterMode={kv.Value.PrefilterMode},fullCpuFallbackUsed={kv.Value.FullCpuFallbackUsed},fallbackReason={kv.Value.GpuFallbackReason},roiPixels={kv.Value.GpuRoiPixels},rawOpaqueInRoi={kv.Value.GpuRawOpaqueInRoi},nearCandidates={kv.Value.GpuNearCandidates},ignoredOpaque={kv.Value.GpuIgnoredOpaque},overflow={kv.Value.GpuOverflow}"));
+                string detail = string.Join("; ", results.Select(kv => $"layerNum={kv.Key},lineshape={GetPolylineSegmentLineShapeForLog(group, kv.Key)},error={kv.Value.Error},rawCandidates={kv.Value.RawCandidateCount},assignedCore={kv.Value.AssignedCoreCount},ignoredAuxiliary={kv.Value.IgnoredAuxiliaryCount},extensionPixels={kv.Value.ExtensionPixelCount},trueExtensionRatio={kv.Value.TrueExtensionRatio:F3},coverage={kv.Value.Coverage:F2},lengthRatio={kv.Value.LengthRatio:F2},studentType={kv.Value.StudentLineType},prefilterMode={kv.Value.PrefilterMode},fullCpuFallbackUsed={kv.Value.FullCpuFallbackUsed},fallbackReason={kv.Value.GpuFallbackReason},roiPixels={kv.Value.GpuRoiPixels},rawOpaqueInRoi={kv.Value.GpuRawOpaqueInRoi},nearCandidates={kv.Value.GpuNearCandidates},ignoredOpaque={kv.Value.GpuIgnoredOpaque},overflow={kv.Value.GpuOverflow}"));
                 Debug.Log($"[AnswerCheck] 折线组判分 group={group.GroupId}, scoringStrictness={scoringStrictness}, prefilterMode={groupPrefilterMode}, precision={groupPrecision:F3}, extra={groupExtraRatio:F3}, offset={bestOffset}, {detail}");
             }
 
             return results;
+        }
+
+        private string GetPolylineSegmentLineShapeForLog(PolylineGroup group, int layerNum)
+        {
+            PolylineSegmentGuide segment = group?.Segments?.FirstOrDefault(s => s.Layer != null && s.Layer.layerNum == layerNum);
+            return segment?.Layer != null ? segment.Layer.lineshape.ToString() : string.Empty;
         }
 
         private Dictionary<int, PolylineSegmentResult> CreateDefaultPolylineResults(PolylineGroup group, ErrorReson error)

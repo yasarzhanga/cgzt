@@ -210,6 +210,11 @@ namespace jxzt
             ReleaseBuffer(ref _counterBuffer);
             _outputCapacity = 0;
             _readbackBuffer = null;
+            ReleaseStudentTextureOnly();
+        }
+
+        internal void ReleaseStudentTextureOnly()
+        {
             _textureLayer = null;
             _textureSource = null;
 
@@ -217,6 +222,16 @@ namespace jxzt
             {
                 DestroyTexture(_studentTexture);
                 _studentTexture = null;
+            }
+            _textureWidth = 0;
+            _textureHeight = 0;
+        }
+
+        internal void TrimReadbackBuffer(int maxKeepCount = 65536)
+        {
+            if (_readbackBuffer != null && _readbackBuffer.Length > maxKeepCount)
+            {
+                _readbackBuffer = null;
             }
         }
 

@@ -112,6 +112,12 @@ namespace jxzt
             get => layerSize;
             set
             {
+                if (texture2D != null)
+                {
+                    Destroy(texture2D);
+                    texture2D = null;
+                }
+
                 layerSize = value;
                 image_colors = new Color32[value.width * value.height];
                 Array.Fill(image_colors, None);
@@ -134,8 +140,19 @@ namespace jxzt
         }
         public void ClearTextureMemory()
         {
-            Destroy(texture2D);
+            if (Layer_image != null)
+            {
+                Layer_image.texture = null;
+            }
+
+            if (texture2D != null)
+            {
+                Destroy(texture2D);
+                texture2D = null;
+            }
+
             textureRegionBuffer = null;
+            image_colors = null;
 
         }
         /// <summary>
