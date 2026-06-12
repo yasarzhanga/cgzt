@@ -89,6 +89,8 @@ namespace jxzt
         private List<PolylineGroup> _polylineGroups;
         private Dictionary<int, PolylineGroup> _polylineGroupByLayerNum;
         private Dictionary<int, Dictionary<int, PolylineSegmentResult>> _polylineResultCache;
+        private List<CompoundContourGroup> _compoundContourGroups;
+        private Dictionary<int, CompoundContourGroup> _compoundContourGroupByLayerNum;
         private const bool UseDistanceFieldNearestSearch = true;
         private const int MaxDistanceFieldArea = 6000000;
         private const int DistanceFieldCostMultiplier = 4;
@@ -126,6 +128,12 @@ namespace jxzt
 
             _polylineGroupByLayerNum?.Clear();
             _polylineGroupByLayerNum = null;
+
+            _compoundContourGroups?.Clear();
+            _compoundContourGroups = null;
+
+            _compoundContourGroupByLayerNum?.Clear();
+            _compoundContourGroupByLayerNum = null;
 
             if (releaseGpuResources)
             {
@@ -175,6 +183,7 @@ namespace jxzt
                 }
                 _gpuLineEvidencePrefilter?.InvalidateStudentTexture();
                 BuildPolylineGroups();
+                BuildCompoundContourGroups();
 
 
             }
@@ -582,7 +591,7 @@ namespace jxzt
                 layer.lineType = lineMatch.StudentLineType;
                 standardlayer.displayError_position = lineMatch.ErrorPosition;
 
-                string lineMatchDetail = $"layerNum={standardlayer.layerNum};lineshape={standardlayer.lineshape};recall={lineMatch.Recall:F3};precision={lineMatch.Precision:F3};missing={lineMatch.MissingRatio:F3};extra={lineMatch.ExtraRatio:F3};p95={lineMatch.P95Distance:F1};bestOffset={lineMatch.BestOffset};studentLineType={lineMatch.StudentLineType};standardLineType={standardlayer.lineType};patterned={lineMatch.IsPatternedMode};geometry={lineMatch.GeometryPrecision:F3};macro={lineMatch.MacroCoverage:F3};macroLimit={lineMatch.MacroCoverageLimit:F3};span={lineMatch.PatternLengthRatio:F3};endpointMiss={lineMatch.PatternEndpointMiss:F1};endpointLimit={lineMatch.PatternEndpointLimit:F1};extraSpan={lineMatch.PatternExtraSpanRatio:F3};lengthRatio={lineMatch.ProjectedLengthRatio:F3};rawCandidates={lineMatch.RawCandidateCount};corePixels={lineMatch.CorePixelCount};ignoredAuxiliary={lineMatch.IgnoredAuxiliaryPixelCount};extensionPixels={lineMatch.ExtensionPixelCount};rawExtensionPixels={lineMatch.RawExtensionPixelCount};explainedByNeighborStandard={lineMatch.ExplainedByNeighborStandardCount};filteredExtensionPixels={lineMatch.FilteredExtensionPixelCount};trueExtensionRatio={lineMatch.TrueExtensionRatio:F3};trueExtensionRatioBeforeNeighborFilter={lineMatch.TrueExtensionRatioBeforeNeighborFilter:F3};trueExtensionRatioAfterNeighborFilter={lineMatch.TrueExtensionRatioAfterNeighborFilter:F3};scoringStrictness={scoringStrictness};prefilterMode={lineMatch.PrefilterMode};fullCpuFallbackUsed={lineMatch.FullCpuFallbackUsed};fallbackReason={lineMatch.PrefilterFallbackReason};gpuPrefilterEnabled={lineMatch.GpuPrefilterEnabled};gpuPrefilterUsed={lineMatch.GpuPrefilterUsed};gpuPrefilterFallbackReason={lineMatch.GpuPrefilterFallbackReason};roiPixels={lineMatch.GpuRoiPixels};rawOpaqueInRoi={lineMatch.GpuRawOpaqueInRoi};nearCandidates={lineMatch.GpuNearCandidates};ignoredOpaque={lineMatch.GpuIgnoredOpaque};overflow={lineMatch.GpuOverflow}";
+                string lineMatchDetail = $"layerNum={standardlayer.layerNum};lineshape={standardlayer.lineshape};recall={lineMatch.Recall:F3};precision={lineMatch.Precision:F3};missing={lineMatch.MissingRatio:F3};extra={lineMatch.ExtraRatio:F3};p95={lineMatch.P95Distance:F1};bestOffset={lineMatch.BestOffset};studentLineType={lineMatch.StudentLineType};standardLineType={standardlayer.lineType};patterned={lineMatch.IsPatternedMode};geometry={lineMatch.GeometryPrecision:F3};macro={lineMatch.MacroCoverage:F3};macroLimit={lineMatch.MacroCoverageLimit:F3};span={lineMatch.PatternLengthRatio:F3};endpointMiss={lineMatch.PatternEndpointMiss:F1};endpointLimit={lineMatch.PatternEndpointLimit:F1};extraSpan={lineMatch.PatternExtraSpanRatio:F3};lengthRatio={lineMatch.ProjectedLengthRatio:F3};lengthRatioBeforeCompoundFilter={lineMatch.LengthRatioBeforeCompoundFilter:F3};lengthRatioAfterCompoundFilter={lineMatch.LengthRatioAfterCompoundFilter:F3};compoundGroupId={lineMatch.CompoundGroupId};compoundGroupLayers={lineMatch.CompoundGroupLayers};rawCandidates={lineMatch.RawCandidateCount};rawCandidatePixelsBeforeCompoundFilter={lineMatch.RawCandidatePixelsBeforeCompoundFilter};explainedCandidatesByCompoundGroup={lineMatch.ExplainedCandidatesByCompoundGroup};candidatePixelsAfterCompoundFilter={lineMatch.CandidatePixelsAfterCompoundFilter};corePixels={lineMatch.CorePixelCount};ignoredAuxiliary={lineMatch.IgnoredAuxiliaryPixelCount};extensionPixels={lineMatch.ExtensionPixelCount};rawExtensionPixels={lineMatch.RawExtensionPixelCount};explainedByNeighborStandard={lineMatch.ExplainedByNeighborStandardCount};explainedByCompoundGroup={lineMatch.ExplainedByCompoundGroupCount};filteredExtensionPixels={lineMatch.FilteredExtensionPixelCount};trueExtensionRatio={lineMatch.TrueExtensionRatio:F3};trueExtensionRatioBeforeNeighborFilter={lineMatch.TrueExtensionRatioBeforeNeighborFilter:F3};trueExtensionRatioAfterNeighborFilter={lineMatch.TrueExtensionRatioAfterNeighborFilter:F3};trueExtensionRatioBeforeCompoundFilter={lineMatch.TrueExtensionRatioBeforeCompoundFilter:F3};trueExtensionRatioAfterCompoundFilter={lineMatch.TrueExtensionRatioAfterCompoundFilter:F3};scoringStrictness={scoringStrictness};prefilterMode={lineMatch.PrefilterMode};fullCpuFallbackUsed={lineMatch.FullCpuFallbackUsed};fallbackReason={lineMatch.PrefilterFallbackReason};gpuPrefilterEnabled={lineMatch.GpuPrefilterEnabled};gpuPrefilterUsed={lineMatch.GpuPrefilterUsed};gpuPrefilterFallbackReason={lineMatch.GpuPrefilterFallbackReason};roiPixels={lineMatch.GpuRoiPixels};rawOpaqueInRoi={lineMatch.GpuRawOpaqueInRoi};nearCandidates={lineMatch.GpuNearCandidates};ignoredOpaque={lineMatch.GpuIgnoredOpaque};overflow={lineMatch.GpuOverflow}";
                 ScoringPerf.LayerMatchMetric(standardlayer.layerNum, lineMatchDetail);
                 if (ScoringPerf.VerboseLayerLogs)
                 {
@@ -1064,10 +1073,20 @@ namespace jxzt
             public int ExtensionPixelCount;
             public int RawExtensionPixelCount;
             public int ExplainedByNeighborStandardCount;
+            public int ExplainedByCompoundGroupCount;
             public int FilteredExtensionPixelCount;
             public float TrueExtensionRatio;
             public float TrueExtensionRatioBeforeNeighborFilter;
             public float TrueExtensionRatioAfterNeighborFilter;
+            public float TrueExtensionRatioBeforeCompoundFilter;
+            public float TrueExtensionRatioAfterCompoundFilter;
+            public int CompoundGroupId;
+            public string CompoundGroupLayers;
+            public int RawCandidatePixelsBeforeCompoundFilter;
+            public int ExplainedCandidatesByCompoundGroup;
+            public int CandidatePixelsAfterCompoundFilter;
+            public float LengthRatioBeforeCompoundFilter;
+            public float LengthRatioAfterCompoundFilter;
             public Vector2Int BestOffset;
             public linetype StudentLineType;
             public Vector2 ErrorPosition;
@@ -1104,11 +1123,15 @@ namespace jxzt
             public int RawCandidateCount;
             public int RawExtensionPixelCount;
             public int ExplainedByNeighborStandardCount;
+            public int ExplainedByCompoundGroupCount;
             public int FilteredExtensionPixelCount;
             public float TrueExtensionRatio;
             public float TrueExtensionRatioBeforeNeighborFilter;
             public float TrueExtensionRatioAfterNeighborFilter;
+            public float TrueExtensionRatioBeforeCompoundFilter;
+            public float TrueExtensionRatioAfterCompoundFilter;
             public float EvidenceProjectedLength;
+            public float EvidenceProjectedLengthBeforeCompoundFilter;
 
             public int GetIgnoredAuxiliaryCount()
             {
@@ -1141,6 +1164,36 @@ namespace jxzt
             public float Tolerance;
         }
 
+        private sealed class CompoundContourGroup
+        {
+            public int GroupId;
+            public List<LayerManager> Layers = new List<LayerManager>();
+            public HashSet<int> LayerNums = new HashSet<int>();
+            public List<PositionInt> StandardPixels = new List<PositionInt>();
+            public float Tolerance;
+        }
+
+        private sealed class GeometryGuide
+        {
+            public LayerManager Layer;
+            public List<PositionInt> Pixels;
+            public Vector2[] Endpoints;
+            public PixelBounds Bounds;
+            public float Tolerance;
+            public linetype LineType;
+            public lineshape Shape;
+        }
+
+        private struct CompoundPixelFilterResult
+        {
+            public List<PositionInt> FilteredPixels;
+            public int RawCount;
+            public int ExplainedCount;
+            public int FilteredCount;
+            public int GroupId;
+            public string GroupLayers;
+        }
+
         private sealed class PolylineSegmentGuide
         {
             public LayerManager Layer;
@@ -1166,10 +1219,20 @@ namespace jxzt
             public int ExtensionPixelCount;
             public int RawExtensionPixelCount;
             public int ExplainedByNeighborStandardCount;
+            public int ExplainedByCompoundGroupCount;
             public int FilteredExtensionPixelCount;
             public float TrueExtensionRatio;
             public float TrueExtensionRatioBeforeNeighborFilter;
             public float TrueExtensionRatioAfterNeighborFilter;
+            public float TrueExtensionRatioBeforeCompoundFilter;
+            public float TrueExtensionRatioAfterCompoundFilter;
+            public int CompoundGroupId;
+            public string CompoundGroupLayers;
+            public int RawCandidatePixelsBeforeCompoundFilter;
+            public int ExplainedCandidatesByCompoundGroup;
+            public int CandidatePixelsAfterCompoundFilter;
+            public float LengthRatioBeforeCompoundFilter;
+            public float LengthRatioAfterCompoundFilter;
             public bool GpuPrefilterUsed;
             public int GpuRoiPixels;
             public int GpuRawOpaqueInRoi;
@@ -1578,6 +1641,372 @@ namespace jxzt
             }
         }
 
+        private void BuildCompoundContourGroups()
+        {
+            _compoundContourGroups = new List<CompoundContourGroup>();
+            _compoundContourGroupByLayerNum = new Dictionary<int, CompoundContourGroup>();
+
+            if (standardlayer_manager == null || standardlayer_manager.Count < 2)
+            {
+                return;
+            }
+
+            List<GeometryGuide> guides = new List<GeometryGuide>();
+            foreach (var layer in standardlayer_manager)
+            {
+                if (!CanUseCompoundContourLayer(layer))
+                {
+                    continue;
+                }
+
+                if (TryCreateGeometryGuide(layer, out GeometryGuide guide))
+                {
+                    guides.Add(guide);
+                }
+            }
+
+            if (guides.Count < 2)
+            {
+                return;
+            }
+
+            List<int>[] adjacency = new List<int>[guides.Count];
+            for (int i = 0; i < adjacency.Length; i++)
+            {
+                adjacency[i] = new List<int>();
+            }
+
+            for (int i = 0; i < guides.Count; i++)
+            {
+                for (int j = i + 1; j < guides.Count; j++)
+                {
+                    if (AreGeometryGuidesConnected(guides[i], guides[j]))
+                    {
+                        adjacency[i].Add(j);
+                        adjacency[j].Add(i);
+                    }
+                }
+            }
+
+            bool[] visited = new bool[guides.Count];
+            int groupId = 1;
+            for (int i = 0; i < guides.Count; i++)
+            {
+                if (visited[i] || adjacency[i].Count == 0)
+                {
+                    continue;
+                }
+
+                List<int> component = new List<int>();
+                Queue<int> queue = new Queue<int>();
+                queue.Enqueue(i);
+                visited[i] = true;
+                while (queue.Count > 0)
+                {
+                    int index = queue.Dequeue();
+                    component.Add(index);
+                    foreach (int next in adjacency[index])
+                    {
+                        if (!visited[next])
+                        {
+                            visited[next] = true;
+                            queue.Enqueue(next);
+                        }
+                    }
+                }
+
+                if (component.Count < 2)
+                {
+                    continue;
+                }
+
+                CompoundContourGroup group = new CompoundContourGroup
+                {
+                    GroupId = groupId++
+                };
+
+                HashSet<long> seenPixels = new HashSet<long>();
+                float maxTolerance = 0f;
+                foreach (int index in component)
+                {
+                    GeometryGuide guide = guides[index];
+                    group.Layers.Add(guide.Layer);
+                    group.LayerNums.Add(guide.Layer.layerNum);
+                    maxTolerance = Mathf.Max(maxTolerance, guide.Tolerance);
+                    foreach (var point in guide.Pixels)
+                    {
+                        if (seenPixels.Add(PointKey(point.x, point.y)))
+                        {
+                            group.StandardPixels.Add(point);
+                        }
+                    }
+                }
+
+                group.Tolerance = Mathf.Max(8f, maxTolerance);
+                _compoundContourGroups.Add(group);
+                foreach (var layer in group.Layers)
+                {
+                    _compoundContourGroupByLayerNum[layer.layerNum] = group;
+                }
+
+                if (ScoringPerf.VerboseLayerLogs)
+                {
+                    Debug.Log($"[AnswerCheck] CompoundContourGroup group={group.GroupId} layers={DescribeCompoundGroupLayers(group)}");
+                }
+            }
+        }
+
+        private bool CanUseCompoundContourLayer(LayerManager layer)
+        {
+            if (layer == null || layer.lineType == linetype.unknown)
+            {
+                return false;
+            }
+
+            return layer.lineshape == lineshape.直线
+                   || layer.lineshape == lineshape.圆弧
+                   || layer.lineshape == lineshape.圆
+                   || layer.lineshape == lineshape.椭圆;
+        }
+
+        private bool TryCreateGeometryGuide(LayerManager layer, out GeometryGuide guide)
+        {
+            guide = null;
+            if (!CanUseCompoundContourLayer(layer))
+            {
+                return false;
+            }
+
+            List<PositionInt> pixels = GetStandardPixels(layer);
+            if (pixels.Count == 0)
+            {
+                return false;
+            }
+
+            Vector2[] endpoints = Array.Empty<Vector2>();
+            if (layer.lineshape == lineshape.直线)
+            {
+                Vector2 axis = GetPrincipalAxis(pixels);
+                ProjectionStats stats = GetProjectionStats(pixels, axis);
+                if (stats.Length < 8f)
+                {
+                    return false;
+                }
+
+                endpoints = new[]
+                {
+                    GetProjectionEdgePoint(pixels, axis, stats.Min),
+                    GetProjectionEdgePoint(pixels, axis, stats.Max)
+                };
+            }
+            else if (layer.lineshape == lineshape.圆弧)
+            {
+                endpoints = TryGetArcDataEndpoints(layer, pixels, out Vector2[] arcEndpoints)
+                    ? arcEndpoints
+                    : EstimateOpenShapeEndpointsByPixels(pixels);
+            }
+
+            guide = new GeometryGuide
+            {
+                Layer = layer,
+                Pixels = pixels,
+                Endpoints = endpoints ?? Array.Empty<Vector2>(),
+                Bounds = GetBounds(pixels),
+                Tolerance = Mathf.Max(8f, GetLineTolerance(pixels)),
+                LineType = layer.lineType,
+                Shape = layer.lineshape
+            };
+            return true;
+        }
+
+        private bool TryGetArcDataEndpoints(LayerManager layer, List<PositionInt> pixels, out Vector2[] endpoints)
+        {
+            endpoints = null;
+            if (layer == null || layer.arcData == null || pixels == null || pixels.Count == 0)
+            {
+                return false;
+            }
+
+            Vector2 start = new Vector2(layer.arcData.Start_X, layer.arcData.Start_Y);
+            Vector2 end = new Vector2(layer.arcData.End_X, layer.arcData.End_Y);
+            if ((start - end).sqrMagnitude < 4f)
+            {
+                return false;
+            }
+
+            PixelBounds bounds = ExpandBounds(GetBounds(pixels), Mathf.CeilToInt(Mathf.Max(8f, GetLineTolerance(pixels))));
+            if (!IsInsideBounds(start, bounds) || !IsInsideBounds(end, bounds))
+            {
+                return false;
+            }
+
+            endpoints = new[] { start, end };
+            return true;
+        }
+
+        private Vector2[] EstimateOpenShapeEndpointsByPixels(List<PositionInt> pixels)
+        {
+            if (pixels == null || pixels.Count < 2)
+            {
+                return Array.Empty<Vector2>();
+            }
+
+            int sampleLimit = 700;
+            int sampleStep = Mathf.Max(1, Mathf.CeilToInt(pixels.Count / (float)sampleLimit));
+            PositionInt first = pixels[0];
+            PositionInt second = pixels[pixels.Count - 1];
+            long bestDistanceSq = -1;
+            for (int i = 0; i < pixels.Count; i += sampleStep)
+            {
+                PositionInt a = pixels[i];
+                for (int j = i + sampleStep; j < pixels.Count; j += sampleStep)
+                {
+                    PositionInt b = pixels[j];
+                    long dx = a.x - b.x;
+                    long dy = a.y - b.y;
+                    long distanceSq = dx * dx + dy * dy;
+                    if (distanceSq > bestDistanceSq)
+                    {
+                        bestDistanceSq = distanceSq;
+                        first = a;
+                        second = b;
+                    }
+                }
+            }
+
+            if (bestDistanceSq <= 0)
+            {
+                return Array.Empty<Vector2>();
+            }
+
+            return new[]
+            {
+                new Vector2(first.x, first.y),
+                new Vector2(second.x, second.y)
+            };
+        }
+
+        private bool AreGeometryGuidesConnected(GeometryGuide a, GeometryGuide b)
+        {
+            if (a == null || b == null
+                || a.Layer == null || b.Layer == null
+                || ReferenceEquals(a.Layer, b.Layer)
+                || a.LineType == linetype.unknown
+                || b.LineType == linetype.unknown
+                || a.LineType != b.LineType)
+            {
+                return false;
+            }
+
+            if (a.Endpoints == null || b.Endpoints == null || a.Endpoints.Length == 0 || b.Endpoints.Length == 0)
+            {
+                return false;
+            }
+
+            float joinTolerance = Mathf.Clamp(Mathf.Max(10f, Mathf.Min(a.Tolerance, b.Tolerance) * 1.8f), 10f, 28f);
+            if (!BoundsIntersect(ExpandBounds(a.Bounds, Mathf.CeilToInt(joinTolerance)), ExpandBounds(b.Bounds, Mathf.CeilToInt(joinTolerance))))
+            {
+                return false;
+            }
+
+            float joinToleranceSq = joinTolerance * joinTolerance;
+            foreach (var endpointA in a.Endpoints)
+            {
+                foreach (var endpointB in b.Endpoints)
+                {
+                    if ((endpointA - endpointB).sqrMagnitude <= joinToleranceSq)
+                    {
+                        return true;
+                    }
+                }
+            }
+
+            foreach (var endpointA in a.Endpoints)
+            {
+                if (IsEndpointNearOtherGuideEndpoint(endpointA, b, joinTolerance))
+                {
+                    return true;
+                }
+            }
+
+            foreach (var endpointB in b.Endpoints)
+            {
+                if (IsEndpointNearOtherGuideEndpoint(endpointB, a, joinTolerance))
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        private bool IsEndpointNearOtherGuideEndpoint(Vector2 endpoint, GeometryGuide other, float joinTolerance)
+        {
+            if (other == null || other.Pixels == null || other.Pixels.Count == 0 || other.Endpoints == null || other.Endpoints.Length == 0)
+            {
+                return false;
+            }
+
+            PositionInt nearest = other.Pixels[0];
+            float nearestDistanceSq = (new Vector2(nearest.x, nearest.y) - endpoint).sqrMagnitude;
+            foreach (var point in other.Pixels)
+            {
+                float distanceSq = (new Vector2(point.x, point.y) - endpoint).sqrMagnitude;
+                if (distanceSq < nearestDistanceSq)
+                {
+                    nearestDistanceSq = distanceSq;
+                    nearest = point;
+                }
+            }
+
+            float joinToleranceSq = joinTolerance * joinTolerance;
+            if (nearestDistanceSq > joinToleranceSq)
+            {
+                return false;
+            }
+
+            Vector2 nearestVector = new Vector2(nearest.x, nearest.y);
+            float endpointLimit = joinTolerance * 1.5f;
+            float endpointLimitSq = endpointLimit * endpointLimit;
+            foreach (var otherEndpoint in other.Endpoints)
+            {
+                if ((nearestVector - otherEndpoint).sqrMagnitude <= endpointLimitSq)
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        private bool TryGetCompoundContourGroup(LayerManager layer, out CompoundContourGroup group)
+        {
+            group = null;
+            if (layer == null)
+            {
+                return false;
+            }
+
+            if (_compoundContourGroupByLayerNum == null)
+            {
+                BuildCompoundContourGroups();
+            }
+
+            return _compoundContourGroupByLayerNum != null
+                   && _compoundContourGroupByLayerNum.TryGetValue(layer.layerNum, out group)
+                   && group != null;
+        }
+
+        private string DescribeCompoundGroupLayers(CompoundContourGroup group)
+        {
+            if (group == null || group.LayerNums == null || group.LayerNums.Count == 0)
+            {
+                return string.Empty;
+            }
+
+            return string.Join(",", group.LayerNums.OrderBy(layerNum => layerNum));
+        }
+
         private bool CanUsePolylineLayer(LayerManager layer)
         {
             return layer != null
@@ -1796,6 +2225,7 @@ namespace jxzt
                 List<PositionInt> segmentCandidates = GetPolylineSegmentCandidatePixels(candidatePixels, p0[i], p1[i], axis[i], length[i], group.Tolerance);
                 segmentEvidence[i] = BuildLineStudentEvidence(segmentCandidates, shiftedSegmentPixels[i], axis[i], group.Tolerance, IsPatternedLineType(segment.Layer.lineType));
                 ApplyPolylineNeighborExtensionFilter(segmentEvidence[i], group, i, bestOffset, axis[i], shiftedSegmentPixels, shiftedSegmentPixels[i], group.Tolerance);
+                ApplyCompoundGroupExtensionFilter(segmentEvidence[i], segment.Layer, bestOffset, axis[i], shiftedSegmentPixels[i], group.Tolerance);
                 assignedPixels[i] = segmentEvidence[i].CorePixels;
                 extensionPixels[i] = segmentEvidence[i].ExtensionPixels;
                 AddUniquePixels(assignedPixels[i], groupCorePixels, groupCoreKeys);
@@ -1865,6 +2295,10 @@ namespace jxzt
                     errorPosition = groupExtraPosition != Vector2.zero ? groupExtraPosition : errorPosition;
                 }
 
+                TryGetCompoundContourGroup(segment.Layer, out CompoundContourGroup segmentCompoundGroup);
+                float lengthRatioBeforeCompoundFilter = segmentEvidence[i] != null && segmentEvidence[i].EvidenceProjectedLengthBeforeCompoundFilter > 0f
+                    ? segmentEvidence[i].EvidenceProjectedLengthBeforeCompoundFilter / length[i]
+                    : lengthRatio;
                 segmentResults[segment.Layer.layerNum] = new PolylineSegmentResult
                 {
                     Error = error,
@@ -1879,10 +2313,20 @@ namespace jxzt
                     ExtensionPixelCount = extensionPixels[i].Count,
                     RawExtensionPixelCount = segmentEvidence[i]?.RawExtensionPixelCount ?? extensionPixels[i].Count,
                     ExplainedByNeighborStandardCount = segmentEvidence[i]?.ExplainedByNeighborStandardCount ?? 0,
+                    ExplainedByCompoundGroupCount = segmentEvidence[i]?.ExplainedByCompoundGroupCount ?? 0,
                     FilteredExtensionPixelCount = segmentEvidence[i]?.FilteredExtensionPixelCount ?? extensionPixels[i].Count,
                     TrueExtensionRatio = trueExtensionRatio,
                     TrueExtensionRatioBeforeNeighborFilter = segmentEvidence[i]?.TrueExtensionRatioBeforeNeighborFilter ?? trueExtensionRatio,
                     TrueExtensionRatioAfterNeighborFilter = segmentEvidence[i]?.TrueExtensionRatioAfterNeighborFilter ?? trueExtensionRatio,
+                    TrueExtensionRatioBeforeCompoundFilter = segmentEvidence[i]?.TrueExtensionRatioBeforeCompoundFilter ?? trueExtensionRatio,
+                    TrueExtensionRatioAfterCompoundFilter = segmentEvidence[i]?.TrueExtensionRatioAfterCompoundFilter ?? trueExtensionRatio,
+                    CompoundGroupId = segmentCompoundGroup?.GroupId ?? 0,
+                    CompoundGroupLayers = segmentCompoundGroup != null ? DescribeCompoundGroupLayers(segmentCompoundGroup) : string.Empty,
+                    RawCandidatePixelsBeforeCompoundFilter = segmentEvidence[i]?.RawCandidateCount ?? 0,
+                    ExplainedCandidatesByCompoundGroup = 0,
+                    CandidatePixelsAfterCompoundFilter = segmentEvidence[i]?.RawCandidateCount ?? 0,
+                    LengthRatioBeforeCompoundFilter = lengthRatioBeforeCompoundFilter,
+                    LengthRatioAfterCompoundFilter = lengthRatio,
                     GpuPrefilterUsed = false,
                     GpuFallbackReason = "FULL_CPU fallback",
                     PrefilterMode = PrefilterModeFullCpu,
@@ -1892,7 +2336,7 @@ namespace jxzt
 
             if (ScoringPerf.VerboseLayerLogs)
             {
-                string detail = string.Join("; ", segmentResults.Select(kv => $"layerNum={kv.Key},lineshape={GetPolylineSegmentLineShapeForLog(group, kv.Key)},error={kv.Value.Error},rawCandidates={kv.Value.RawCandidateCount},assignedCore={kv.Value.AssignedCoreCount},ignoredAuxiliary={kv.Value.IgnoredAuxiliaryCount},extensionPixels={kv.Value.ExtensionPixelCount},rawExtensionPixels={kv.Value.RawExtensionPixelCount},explainedByNeighborStandard={kv.Value.ExplainedByNeighborStandardCount},filteredExtensionPixels={kv.Value.FilteredExtensionPixelCount},trueExtensionRatio={kv.Value.TrueExtensionRatio:F3},trueExtensionRatioBeforeNeighborFilter={kv.Value.TrueExtensionRatioBeforeNeighborFilter:F3},trueExtensionRatioAfterNeighborFilter={kv.Value.TrueExtensionRatioAfterNeighborFilter:F3},coverage={kv.Value.Coverage:F2},lengthRatio={kv.Value.LengthRatio:F2},studentType={kv.Value.StudentLineType},prefilterMode={kv.Value.PrefilterMode},fullCpuFallbackUsed={kv.Value.FullCpuFallbackUsed},fallbackReason={kv.Value.GpuFallbackReason},roiPixels={kv.Value.GpuRoiPixels},rawOpaqueInRoi={kv.Value.GpuRawOpaqueInRoi},nearCandidates={kv.Value.GpuNearCandidates},ignoredOpaque={kv.Value.GpuIgnoredOpaque},overflow={kv.Value.GpuOverflow}"));
+                string detail = string.Join("; ", segmentResults.Select(kv => FormatPolylineSegmentResultLog(group, kv)));
                 Debug.Log($"[AnswerCheck] 折线组判分 group={group.GroupId}, scoringStrictness={scoringStrictness}, prefilterMode={PrefilterModeFullCpu}, precision={groupPrecision:F3}, extra={groupExtraRatio:F3}, offset={bestOffset}, {detail}");
             }
 
@@ -2040,6 +2484,7 @@ namespace jxzt
                 }
 
                 ApplyPolylineNeighborExtensionFilter(segmentEvidence[i], group, i, bestOffset, axis[i], shiftedSegmentPixels, shiftedSegmentPixels[i], group.Tolerance);
+                ApplyCompoundGroupExtensionFilter(segmentEvidence[i], group.Segments[i].Layer, bestOffset, axis[i], shiftedSegmentPixels[i], group.Tolerance);
                 extensionPixels[i] = segmentEvidence[i].ExtensionPixels;
             }
 
@@ -2125,6 +2570,10 @@ namespace jxzt
                 string segmentFallbackReason = segmentFallbackReasons != null && !string.IsNullOrEmpty(segmentFallbackReasons[i])
                     ? segmentFallbackReasons[i]
                     : groupFallbackReason;
+                TryGetCompoundContourGroup(segment.Layer, out CompoundContourGroup segmentCompoundGroup);
+                float lengthRatioBeforeCompoundFilter = segmentEvidence[i] != null && segmentEvidence[i].EvidenceProjectedLengthBeforeCompoundFilter > 0f
+                    ? segmentEvidence[i].EvidenceProjectedLengthBeforeCompoundFilter / length[i]
+                    : lengthRatio;
                 results[segment.Layer.layerNum] = new PolylineSegmentResult
                 {
                     Error = error,
@@ -2139,10 +2588,20 @@ namespace jxzt
                     ExtensionPixelCount = extensionPixels[i].Count,
                     RawExtensionPixelCount = segmentEvidence[i]?.RawExtensionPixelCount ?? extensionPixels[i].Count,
                     ExplainedByNeighborStandardCount = segmentEvidence[i]?.ExplainedByNeighborStandardCount ?? 0,
+                    ExplainedByCompoundGroupCount = segmentEvidence[i]?.ExplainedByCompoundGroupCount ?? 0,
                     FilteredExtensionPixelCount = segmentEvidence[i]?.FilteredExtensionPixelCount ?? extensionPixels[i].Count,
                     TrueExtensionRatio = trueExtensionRatio,
                     TrueExtensionRatioBeforeNeighborFilter = segmentEvidence[i]?.TrueExtensionRatioBeforeNeighborFilter ?? trueExtensionRatio,
                     TrueExtensionRatioAfterNeighborFilter = segmentEvidence[i]?.TrueExtensionRatioAfterNeighborFilter ?? trueExtensionRatio,
+                    TrueExtensionRatioBeforeCompoundFilter = segmentEvidence[i]?.TrueExtensionRatioBeforeCompoundFilter ?? trueExtensionRatio,
+                    TrueExtensionRatioAfterCompoundFilter = segmentEvidence[i]?.TrueExtensionRatioAfterCompoundFilter ?? trueExtensionRatio,
+                    CompoundGroupId = segmentCompoundGroup?.GroupId ?? 0,
+                    CompoundGroupLayers = segmentCompoundGroup != null ? DescribeCompoundGroupLayers(segmentCompoundGroup) : string.Empty,
+                    RawCandidatePixelsBeforeCompoundFilter = segmentEvidence[i]?.RawCandidateCount ?? 0,
+                    ExplainedCandidatesByCompoundGroup = 0,
+                    CandidatePixelsAfterCompoundFilter = segmentEvidence[i]?.RawCandidateCount ?? 0,
+                    LengthRatioBeforeCompoundFilter = lengthRatioBeforeCompoundFilter,
+                    LengthRatioAfterCompoundFilter = lengthRatio,
                     GpuPrefilterUsed = segmentPrefilterMode == PrefilterModeGpu,
                     GpuRoiPixels = gpuCounters.RoiPixelCount,
                     GpuRawOpaqueInRoi = gpuCounters.RawOpaqueInRoiCount,
@@ -2157,7 +2616,7 @@ namespace jxzt
 
             if (ScoringPerf.VerboseLayerLogs)
             {
-                string detail = string.Join("; ", results.Select(kv => $"layerNum={kv.Key},lineshape={GetPolylineSegmentLineShapeForLog(group, kv.Key)},error={kv.Value.Error},rawCandidates={kv.Value.RawCandidateCount},assignedCore={kv.Value.AssignedCoreCount},ignoredAuxiliary={kv.Value.IgnoredAuxiliaryCount},extensionPixels={kv.Value.ExtensionPixelCount},rawExtensionPixels={kv.Value.RawExtensionPixelCount},explainedByNeighborStandard={kv.Value.ExplainedByNeighborStandardCount},filteredExtensionPixels={kv.Value.FilteredExtensionPixelCount},trueExtensionRatio={kv.Value.TrueExtensionRatio:F3},trueExtensionRatioBeforeNeighborFilter={kv.Value.TrueExtensionRatioBeforeNeighborFilter:F3},trueExtensionRatioAfterNeighborFilter={kv.Value.TrueExtensionRatioAfterNeighborFilter:F3},coverage={kv.Value.Coverage:F2},lengthRatio={kv.Value.LengthRatio:F2},studentType={kv.Value.StudentLineType},prefilterMode={kv.Value.PrefilterMode},fullCpuFallbackUsed={kv.Value.FullCpuFallbackUsed},fallbackReason={kv.Value.GpuFallbackReason},roiPixels={kv.Value.GpuRoiPixels},rawOpaqueInRoi={kv.Value.GpuRawOpaqueInRoi},nearCandidates={kv.Value.GpuNearCandidates},ignoredOpaque={kv.Value.GpuIgnoredOpaque},overflow={kv.Value.GpuOverflow}"));
+                string detail = string.Join("; ", results.Select(kv => FormatPolylineSegmentResultLog(group, kv)));
                 Debug.Log($"[AnswerCheck] 折线组判分 group={group.GroupId}, scoringStrictness={scoringStrictness}, prefilterMode={groupPrefilterMode}, precision={groupPrecision:F3}, extra={groupExtraRatio:F3}, offset={bestOffset}, {detail}");
             }
 
@@ -2168,6 +2627,12 @@ namespace jxzt
         {
             PolylineSegmentGuide segment = group?.Segments?.FirstOrDefault(s => s.Layer != null && s.Layer.layerNum == layerNum);
             return segment?.Layer != null ? segment.Layer.lineshape.ToString() : string.Empty;
+        }
+
+        private string FormatPolylineSegmentResultLog(PolylineGroup group, KeyValuePair<int, PolylineSegmentResult> kv)
+        {
+            PolylineSegmentResult value = kv.Value;
+            return $"layerNum={kv.Key},lineshape={GetPolylineSegmentLineShapeForLog(group, kv.Key)},error={value.Error},rawCandidates={value.RawCandidateCount},rawCandidatePixelsBeforeCompoundFilter={value.RawCandidatePixelsBeforeCompoundFilter},explainedCandidatesByCompoundGroup={value.ExplainedCandidatesByCompoundGroup},candidatePixelsAfterCompoundFilter={value.CandidatePixelsAfterCompoundFilter},assignedCore={value.AssignedCoreCount},ignoredAuxiliary={value.IgnoredAuxiliaryCount},compoundGroupId={value.CompoundGroupId},compoundGroupLayers={value.CompoundGroupLayers},extensionPixels={value.ExtensionPixelCount},rawExtensionPixels={value.RawExtensionPixelCount},explainedByNeighborStandard={value.ExplainedByNeighborStandardCount},explainedByCompoundGroup={value.ExplainedByCompoundGroupCount},filteredExtensionPixels={value.FilteredExtensionPixelCount},trueExtensionRatio={value.TrueExtensionRatio:F3},trueExtensionRatioBeforeNeighborFilter={value.TrueExtensionRatioBeforeNeighborFilter:F3},trueExtensionRatioAfterNeighborFilter={value.TrueExtensionRatioAfterNeighborFilter:F3},trueExtensionRatioBeforeCompoundFilter={value.TrueExtensionRatioBeforeCompoundFilter:F3},trueExtensionRatioAfterCompoundFilter={value.TrueExtensionRatioAfterCompoundFilter:F3},coverage={value.Coverage:F2},lengthRatio={value.LengthRatio:F2},lengthRatioBeforeCompoundFilter={value.LengthRatioBeforeCompoundFilter:F2},lengthRatioAfterCompoundFilter={value.LengthRatioAfterCompoundFilter:F2},studentType={value.StudentLineType},prefilterMode={value.PrefilterMode},fullCpuFallbackUsed={value.FullCpuFallbackUsed},fallbackReason={value.GpuFallbackReason},roiPixels={value.GpuRoiPixels},rawOpaqueInRoi={value.GpuRawOpaqueInRoi},nearCandidates={value.GpuNearCandidates},ignoredOpaque={value.GpuIgnoredOpaque},overflow={value.GpuOverflow}";
         }
 
         private Dictionary<int, PolylineSegmentResult> CreateDefaultPolylineResults(PolylineGroup group, ErrorReson error)
@@ -2195,10 +2660,20 @@ namespace jxzt
                     ExtensionPixelCount = 0,
                     RawExtensionPixelCount = 0,
                     ExplainedByNeighborStandardCount = 0,
+                    ExplainedByCompoundGroupCount = 0,
                     FilteredExtensionPixelCount = 0,
                     TrueExtensionRatio = 0f,
                     TrueExtensionRatioBeforeNeighborFilter = 0f,
                     TrueExtensionRatioAfterNeighborFilter = 0f,
+                    TrueExtensionRatioBeforeCompoundFilter = 0f,
+                    TrueExtensionRatioAfterCompoundFilter = 0f,
+                    CompoundGroupId = 0,
+                    CompoundGroupLayers = string.Empty,
+                    RawCandidatePixelsBeforeCompoundFilter = 0,
+                    ExplainedCandidatesByCompoundGroup = 0,
+                    CandidatePixelsAfterCompoundFilter = 0,
+                    LengthRatioBeforeCompoundFilter = 0f,
+                    LengthRatioAfterCompoundFilter = 0f,
                     GpuPrefilterUsed = false,
                     GpuFallbackReason = string.Empty,
                     PrefilterMode = string.Empty,
@@ -2700,6 +3175,37 @@ namespace jxzt
                 return result;
             }
 
+            bool isInCompoundGroup = TryGetCompoundContourGroup(standardLayer, out CompoundContourGroup compoundGroup);
+            result.CompoundGroupId = isInCompoundGroup ? compoundGroup.GroupId : 0;
+            result.CompoundGroupLayers = isInCompoundGroup ? DescribeCompoundGroupLayers(compoundGroup) : string.Empty;
+            List<PositionInt> rawStudentCandidatePixels = studentCandidatePixels;
+            CompoundPixelFilterResult compoundCandidateFilter = CreateCompoundFilterResult(rawStudentCandidatePixels, compoundGroup);
+            if (standardLayer.lineshape != lineshape.直线)
+            {
+                studentCandidatePixels = FilterStudentCandidatesExplainedByCompoundGroup(
+                    studentCandidatePixels,
+                    shiftedStandardPixels,
+                    standardLayer,
+                    result.BestOffset,
+                    result.Tolerance,
+                    out compoundCandidateFilter);
+            }
+
+            result.RawCandidatePixelsBeforeCompoundFilter = compoundCandidateFilter.RawCount;
+            result.ExplainedCandidatesByCompoundGroup = compoundCandidateFilter.ExplainedCount;
+            result.CandidatePixelsAfterCompoundFilter = compoundCandidateFilter.FilteredCount;
+            if (result.CompoundGroupId == 0 && compoundCandidateFilter.GroupId != 0)
+            {
+                result.CompoundGroupId = compoundCandidateFilter.GroupId;
+                result.CompoundGroupLayers = compoundCandidateFilter.GroupLayers;
+            }
+
+            if (studentCandidatePixels == null || studentCandidatePixels.Count == 0)
+            {
+                result.HasStudentPixels = false;
+                return result;
+            }
+
             LineStudentEvidence evidence = null;
             List<PositionInt> scoreStudentPixels = studentCandidatePixels;
             List<PositionInt> spanStudentPixels = studentCandidatePixels;
@@ -2707,16 +3213,20 @@ namespace jxzt
             {
                 evidence = BuildLineStudentEvidence(studentCandidatePixels, shiftedStandardPixels, mainAxis, result.Tolerance, usePatternedLineMatch);
                 ApplyNeighborStandardExtensionFilter(evidence, standardLayer, result.BestOffset, mainAxis, shiftedStandardPixels, result.Tolerance);
+                ApplyCompoundGroupExtensionFilter(evidence, standardLayer, result.BestOffset, mainAxis, shiftedStandardPixels, result.Tolerance);
                 result.RawCandidateCount = evidence.RawCandidateCount;
                 result.CorePixelCount = evidence.CorePixels.Count;
                 result.IgnoredAuxiliaryPixelCount = evidence.GetIgnoredAuxiliaryCount();
                 result.ExtensionPixelCount = evidence.ExtensionPixels.Count;
                 result.RawExtensionPixelCount = evidence.RawExtensionPixelCount;
                 result.ExplainedByNeighborStandardCount = evidence.ExplainedByNeighborStandardCount;
+                result.ExplainedByCompoundGroupCount = evidence.ExplainedByCompoundGroupCount;
                 result.FilteredExtensionPixelCount = evidence.FilteredExtensionPixelCount;
                 result.TrueExtensionRatio = evidence.TrueExtensionRatio;
                 result.TrueExtensionRatioBeforeNeighborFilter = evidence.TrueExtensionRatioBeforeNeighborFilter;
                 result.TrueExtensionRatioAfterNeighborFilter = evidence.TrueExtensionRatioAfterNeighborFilter;
+                result.TrueExtensionRatioBeforeCompoundFilter = evidence.TrueExtensionRatioBeforeCompoundFilter;
+                result.TrueExtensionRatioAfterCompoundFilter = evidence.TrueExtensionRatioAfterCompoundFilter;
 
                 scoreStudentPixels = evidence.CorePixels;
                 spanStudentPixels = evidence.GetCoreAndExtensionPixels();
@@ -2735,10 +3245,13 @@ namespace jxzt
                 result.ExtensionPixelCount = 0;
                 result.RawExtensionPixelCount = 0;
                 result.ExplainedByNeighborStandardCount = 0;
+                result.ExplainedByCompoundGroupCount = 0;
                 result.FilteredExtensionPixelCount = 0;
                 result.TrueExtensionRatio = 0f;
                 result.TrueExtensionRatioBeforeNeighborFilter = 0f;
                 result.TrueExtensionRatioAfterNeighborFilter = 0f;
+                result.TrueExtensionRatioBeforeCompoundFilter = 0f;
+                result.TrueExtensionRatioAfterCompoundFilter = 0f;
             }
 
             if (usePatternedLineMatch)
@@ -2869,8 +3382,14 @@ namespace jxzt
             result.StudentLineType = RecognizeLineTypeByProjection(scoreStudentPixels, mainAxis, standardLayer.lineType == linetype.实线, standardProjectedLength);
 
             float studentProjectedLength = evidence != null ? evidence.EvidenceProjectedLength : GetProjectedLength(spanStudentPixels, mainAxis);
+            float studentProjectedLengthBeforeCompoundFilter = evidence != null
+                ? evidence.EvidenceProjectedLengthBeforeCompoundFilter
+                : GetProjectedLength(rawStudentCandidatePixels, mainAxis);
             float lengthRatio = studentProjectedLength / standardProjectedLength;
+            float lengthRatioBeforeCompoundFilter = studentProjectedLengthBeforeCompoundFilter / standardProjectedLength;
             result.ProjectedLengthRatio = lengthRatio;
+            result.LengthRatioBeforeCompoundFilter = lengthRatioBeforeCompoundFilter;
+            result.LengthRatioAfterCompoundFilter = lengthRatio;
 
             result.MissingErrorPosition = missingStandardPixels.Count > 0 ? GetAveragePoint(missingStandardPixels) : GetAveragePoint(shiftedStandardPixels);
             result.ExtraErrorPosition = evidence != null && evidence.ExtensionPixels.Count > 0
@@ -2908,15 +3427,64 @@ namespace jxzt
                                    && evidence.TrueExtensionRatio > trueExtensionLongLimit
                                    && lengthRatio > longLengthRatioLimit
                                    && HasSignificantEndpointExtension(evidence.ExtensionPixels, shiftedStandardPixels, mainAxis, result.Tolerance);
+                result.IsTooLong = result.IsTooLong
+                                   && ShouldReportTooLong(
+                                       result,
+                                       standardLayer,
+                                       evidence.ExtensionPixels.Count,
+                                       evidence.ExplainedByCompoundGroupCount,
+                                       lengthRatio,
+                                       evidence.TrueExtensionRatio);
             }
             else
             {
                 result.IsTooLong = result.Recall >= result.RightLimit
                                    && (result.ExtraRatio > 0.42f || lengthRatio > 1.18f)
                                    && result.Precision < 0.86f;
+                result.IsTooLong = result.IsTooLong
+                                   && ShouldReportTooLong(
+                                       result,
+                                       standardLayer,
+                                       Mathf.Max(0, scoreStudentPixels.Count - matchedStudent),
+                                       compoundCandidateFilter.ExplainedCount,
+                                       lengthRatio,
+                                       result.ExtraRatio);
             }
 
             return result;
+        }
+
+        private bool ShouldReportTooLong(
+            LineMatchResult lineMatch,
+            LayerManager standardLayer,
+            int filteredExtraOrExtensionCount,
+            int explainedByCompoundCount,
+            float filteredLengthRatio,
+            float filteredTrueExtensionRatio)
+        {
+            if (lineMatch.CompoundGroupId == 0 || standardLayer == null)
+            {
+                return true;
+            }
+
+            if (explainedByCompoundCount <= 0)
+            {
+                return true;
+            }
+
+            int corePixels = Mathf.Max(1, lineMatch.CorePixelCount);
+            if (IsHomeworkRelaxed())
+            {
+                int minFilteredPixels = Mathf.Max(30, Mathf.CeilToInt(corePixels * 0.25f));
+                return filteredExtraOrExtensionCount >= minFilteredPixels
+                       && filteredTrueExtensionRatio > 0.35f
+                       && filteredLengthRatio > 1.35f;
+            }
+
+            int strictMinFilteredPixels = Mathf.Max(20, Mathf.CeilToInt(corePixels * 0.15f));
+            return filteredExtraOrExtensionCount >= strictMinFilteredPixels
+                   && filteredTrueExtensionRatio > 0.22f
+                   && filteredLengthRatio > 1.18f;
         }
 
         private bool IsLineMatchRightEnough(LineMatchResult lineMatch, LayerManager standardLayer)
@@ -3092,6 +3660,11 @@ namespace jxzt
             result.MacroCoverage = coveredBins / (float)macroBinCount;
             result.MacroCoverageLimit = GetPatternMacroCoverageLimit(standardLength);
             result.PatternLengthRatio = studentStats.Length / standardLength;
+            result.ProjectedLengthRatio = result.PatternLengthRatio;
+            result.LengthRatioBeforeCompoundFilter = evidence != null
+                ? evidence.EvidenceProjectedLengthBeforeCompoundFilter / standardLength
+                : result.PatternLengthRatio;
+            result.LengthRatioAfterCompoundFilter = result.PatternLengthRatio;
             result.PatternEndpointMiss = Mathf.Max(missingStart, missingEnd);
             result.PatternEndpointLimit = endpointLimit;
             result.PatternExtraSpanRatio = trueExtensionRatio;
@@ -3273,6 +3846,9 @@ namespace jxzt
             evidence.FilteredExtensionPixelCount = evidence.ExtensionPixels.Count;
             evidence.TrueExtensionRatioBeforeNeighborFilter = evidence.TrueExtensionRatio;
             evidence.TrueExtensionRatioAfterNeighborFilter = evidence.TrueExtensionRatio;
+            evidence.TrueExtensionRatioBeforeCompoundFilter = evidence.TrueExtensionRatio;
+            evidence.TrueExtensionRatioAfterCompoundFilter = evidence.TrueExtensionRatio;
+            evidence.EvidenceProjectedLengthBeforeCompoundFilter = evidence.EvidenceProjectedLength;
 
             return evidence;
         }
@@ -4365,6 +4941,19 @@ namespace jxzt
             return point.x >= bounds.minX && point.x <= bounds.maxX && point.y >= bounds.minY && point.y <= bounds.maxY;
         }
 
+        private static bool IsInsideBounds(Vector2 point, PixelBounds bounds)
+        {
+            return point.x >= bounds.minX && point.x <= bounds.maxX && point.y >= bounds.minY && point.y <= bounds.maxY;
+        }
+
+        private static bool BoundsIntersect(PixelBounds a, PixelBounds b)
+        {
+            return a.minX <= b.maxX
+                   && a.maxX >= b.minX
+                   && a.minY <= b.maxY
+                   && a.maxY >= b.minY;
+        }
+
         private List<PositionInt> FilterStudentCandidateComponents(List<PositionInt> candidatePixels, List<PositionInt> shiftedStandardPixels, float tolerance, int layerNum)
         {
             if (candidatePixels == null || candidatePixels.Count == 0)
@@ -4503,6 +5092,40 @@ namespace jxzt
             EnsureLineEvidenceExtensionStats(evidence, shiftedCurrentPixels, currentAxis);
         }
 
+        private void ApplyCompoundGroupExtensionFilter(
+            LineStudentEvidence evidence,
+            LayerManager currentLayer,
+            Vector2Int currentOffset,
+            Vector2 currentAxis,
+            List<PositionInt> shiftedCurrentPixels,
+            float tolerance)
+        {
+            if (evidence == null)
+            {
+                return;
+            }
+
+            EnsureLineEvidenceExtensionStats(evidence, shiftedCurrentPixels, currentAxis);
+            evidence.TrueExtensionRatioBeforeCompoundFilter = evidence.TrueExtensionRatio;
+            evidence.EvidenceProjectedLengthBeforeCompoundFilter = evidence.EvidenceProjectedLength;
+            if (evidence.ExtensionPixels == null || evidence.ExtensionPixels.Count == 0)
+            {
+                evidence.TrueExtensionRatioAfterCompoundFilter = evidence.TrueExtensionRatio;
+                return;
+            }
+
+            CompoundPixelFilterResult filter = FilterPixelsExplainedByCompoundGroup(
+                evidence.ExtensionPixels,
+                currentLayer,
+                currentOffset,
+                tolerance,
+                out _);
+            evidence.ExtensionPixels = filter.FilteredPixels;
+            evidence.ExplainedByCompoundGroupCount = filter.ExplainedCount;
+            EnsureLineEvidenceExtensionStats(evidence, shiftedCurrentPixels, currentAxis);
+            evidence.TrueExtensionRatioAfterCompoundFilter = evidence.TrueExtensionRatio;
+        }
+
         private void ApplyPolylineNeighborExtensionFilter(
             LineStudentEvidence evidence,
             PolylineGroup group,
@@ -4563,6 +5186,7 @@ namespace jxzt
             if (shiftedStandardPixels == null || shiftedStandardPixels.Count == 0)
             {
                 evidence.TrueExtensionRatioAfterNeighborFilter = 0f;
+                evidence.TrueExtensionRatioAfterCompoundFilter = 0f;
                 return;
             }
 
@@ -4587,6 +5211,15 @@ namespace jxzt
                 evidence.TrueExtensionRatioBeforeNeighborFilter = evidence.TrueExtensionRatio;
             }
             evidence.TrueExtensionRatioAfterNeighborFilter = evidence.TrueExtensionRatio;
+            if (evidence.TrueExtensionRatioBeforeCompoundFilter <= 0f)
+            {
+                evidence.TrueExtensionRatioBeforeCompoundFilter = evidence.TrueExtensionRatio;
+            }
+            evidence.TrueExtensionRatioAfterCompoundFilter = evidence.TrueExtensionRatio;
+            if (evidence.EvidenceProjectedLengthBeforeCompoundFilter <= 0f)
+            {
+                evidence.EvidenceProjectedLengthBeforeCompoundFilter = evidence.EvidenceProjectedLength;
+            }
         }
 
         private List<PositionInt> FilterPolylineExtensionPixelsExplainedByGroupOrNeighborStandard(
@@ -4703,6 +5336,153 @@ namespace jxzt
             }
 
             return FilterExtensionPixelsByReferencePixels(extensionPixels, neighborPixels, tolerance, out explainedByNeighborStandard);
+        }
+
+        private CompoundPixelFilterResult FilterPixelsExplainedByCompoundGroup(
+            List<PositionInt> pixels,
+            LayerManager currentLayer,
+            Vector2Int currentOffset,
+            float tolerance,
+            out CompoundContourGroup group)
+        {
+            group = null;
+            CompoundPixelFilterResult result = CreateCompoundFilterResult(pixels, null);
+            if (pixels == null || pixels.Count == 0
+                || !TryGetCompoundContourGroup(currentLayer, out group))
+            {
+                return result;
+            }
+
+            result.GroupId = group.GroupId;
+            result.GroupLayers = DescribeCompoundGroupLayers(group);
+            List<PositionInt> otherGroupPixels = GetShiftedCompoundGroupOtherPixels(group, currentLayer, currentOffset);
+            if (otherGroupPixels.Count == 0)
+            {
+                return result;
+            }
+
+            result.FilteredPixels = FilterExtensionPixelsByReferencePixels(pixels, otherGroupPixels, tolerance, out int explainedCount);
+            result.ExplainedCount = explainedCount;
+            result.FilteredCount = result.FilteredPixels.Count;
+            return result;
+        }
+
+        private List<PositionInt> FilterStudentCandidatesExplainedByCompoundGroup(
+            List<PositionInt> studentCandidatePixels,
+            List<PositionInt> shiftedCurrentPixels,
+            LayerManager currentLayer,
+            Vector2Int currentOffset,
+            float tolerance,
+            out CompoundPixelFilterResult compoundFilter)
+        {
+            compoundFilter = CreateCompoundFilterResult(studentCandidatePixels, null);
+            if (studentCandidatePixels == null || studentCandidatePixels.Count == 0)
+            {
+                return new List<PositionInt>();
+            }
+
+            if (shiftedCurrentPixels == null || shiftedCurrentPixels.Count == 0
+                || !TryGetCompoundContourGroup(currentLayer, out CompoundContourGroup group))
+            {
+                return studentCandidatePixels;
+            }
+
+            compoundFilter.GroupId = group.GroupId;
+            compoundFilter.GroupLayers = DescribeCompoundGroupLayers(group);
+            List<PositionInt> otherGroupPixels = GetShiftedCompoundGroupOtherPixels(group, currentLayer, currentOffset);
+            if (otherGroupPixels.Count == 0)
+            {
+                return studentCandidatePixels;
+            }
+
+            int currentDistance = Mathf.CeilToInt(Mathf.Max(tolerance * 2.0f, 10f));
+            int otherDistance = Mathf.CeilToInt(Mathf.Max(tolerance * 2.5f, 12f));
+            int queryDistance = Mathf.Max(currentDistance, otherDistance);
+            PixelBounds queryBounds = ExpandBounds(GetBounds(studentCandidatePixels), queryDistance);
+            bool useCurrentDistanceField = UseDistanceFieldNearestSearch && GetBoundsArea(queryBounds) <= MaxDistanceFieldArea;
+            bool useOtherDistanceField = useCurrentDistanceField;
+            DistanceField currentDistanceField = null;
+            DistanceField otherDistanceField = null;
+            HashSet<long> currentSet = null;
+            HashSet<long> otherSet = null;
+
+            if (useCurrentDistanceField)
+            {
+                currentDistanceField = DistanceField.Build(shiftedCurrentPixels, queryBounds);
+                otherDistanceField = DistanceField.Build(otherGroupPixels, queryBounds);
+            }
+            else
+            {
+                currentSet = BuildPointSet(shiftedCurrentPixels);
+                otherSet = BuildPointSet(otherGroupPixels);
+            }
+
+            int currentDistanceSq = currentDistance * currentDistance;
+            int otherDistanceSq = otherDistance * otherDistance;
+            List<PositionInt> filtered = new List<PositionInt>(studentCandidatePixels.Count);
+            foreach (var point in studentCandidatePixels)
+            {
+                bool nearCurrent = useCurrentDistanceField
+                    ? currentDistanceField.TryGetDistanceSq(point, currentDistanceSq, out _)
+                    : TryFindNearestDistance(currentSet, point, currentDistance, out float currentNearest) && currentNearest <= currentDistance;
+                bool nearOther = useOtherDistanceField
+                    ? otherDistanceField.TryGetDistanceSq(point, otherDistanceSq, out _)
+                    : TryFindNearestDistance(otherSet, point, otherDistance, out float otherNearest) && otherNearest <= otherDistance;
+
+                if (!nearCurrent && nearOther)
+                {
+                    compoundFilter.ExplainedCount++;
+                    continue;
+                }
+
+                filtered.Add(point);
+            }
+
+            compoundFilter.FilteredPixels = filtered;
+            compoundFilter.FilteredCount = filtered.Count;
+            return filtered;
+        }
+
+        private CompoundPixelFilterResult CreateCompoundFilterResult(List<PositionInt> pixels, CompoundContourGroup group)
+        {
+            return new CompoundPixelFilterResult
+            {
+                FilteredPixels = pixels ?? new List<PositionInt>(),
+                RawCount = pixels?.Count ?? 0,
+                ExplainedCount = 0,
+                FilteredCount = pixels?.Count ?? 0,
+                GroupId = group?.GroupId ?? 0,
+                GroupLayers = group != null ? DescribeCompoundGroupLayers(group) : string.Empty
+            };
+        }
+
+        private List<PositionInt> GetShiftedCompoundGroupOtherPixels(CompoundContourGroup group, LayerManager currentLayer, Vector2Int currentOffset)
+        {
+            List<PositionInt> otherGroupPixels = new List<PositionInt>();
+            if (group == null || group.Layers == null)
+            {
+                return otherGroupPixels;
+            }
+
+            foreach (var otherLayer in group.Layers)
+            {
+                if (otherLayer == null
+                    || ReferenceEquals(otherLayer, currentLayer)
+                    || (currentLayer != null && otherLayer.layerNum == currentLayer.layerNum))
+                {
+                    continue;
+                }
+
+                List<PositionInt> otherPixels = GetStandardPixels(otherLayer);
+                if (otherPixels.Count == 0)
+                {
+                    continue;
+                }
+
+                otherGroupPixels.AddRange(ShiftPositions(otherPixels, currentOffset));
+            }
+
+            return otherGroupPixels;
         }
 
         private List<PositionInt> FilterExtensionPixelsByReferencePixels(
