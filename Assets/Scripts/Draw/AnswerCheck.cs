@@ -582,7 +582,7 @@ namespace jxzt
                 layer.lineType = lineMatch.StudentLineType;
                 standardlayer.displayError_position = lineMatch.ErrorPosition;
 
-                string lineMatchDetail = $"layerNum={standardlayer.layerNum};lineshape={standardlayer.lineshape};recall={lineMatch.Recall:F3};precision={lineMatch.Precision:F3};missing={lineMatch.MissingRatio:F3};extra={lineMatch.ExtraRatio:F3};p95={lineMatch.P95Distance:F1};bestOffset={lineMatch.BestOffset};studentLineType={lineMatch.StudentLineType};standardLineType={standardlayer.lineType};patterned={lineMatch.IsPatternedMode};geometry={lineMatch.GeometryPrecision:F3};macro={lineMatch.MacroCoverage:F3};macroLimit={lineMatch.MacroCoverageLimit:F3};span={lineMatch.PatternLengthRatio:F3};endpointMiss={lineMatch.PatternEndpointMiss:F1};endpointLimit={lineMatch.PatternEndpointLimit:F1};extraSpan={lineMatch.PatternExtraSpanRatio:F3};lengthRatio={lineMatch.ProjectedLengthRatio:F3};rawCandidates={lineMatch.RawCandidateCount};corePixels={lineMatch.CorePixelCount};ignoredAuxiliary={lineMatch.IgnoredAuxiliaryPixelCount};extensionPixels={lineMatch.ExtensionPixelCount};trueExtensionRatio={lineMatch.TrueExtensionRatio:F3};scoringStrictness={scoringStrictness};prefilterMode={lineMatch.PrefilterMode};fullCpuFallbackUsed={lineMatch.FullCpuFallbackUsed};fallbackReason={lineMatch.PrefilterFallbackReason};gpuPrefilterEnabled={lineMatch.GpuPrefilterEnabled};gpuPrefilterUsed={lineMatch.GpuPrefilterUsed};gpuPrefilterFallbackReason={lineMatch.GpuPrefilterFallbackReason};roiPixels={lineMatch.GpuRoiPixels};rawOpaqueInRoi={lineMatch.GpuRawOpaqueInRoi};nearCandidates={lineMatch.GpuNearCandidates};ignoredOpaque={lineMatch.GpuIgnoredOpaque};overflow={lineMatch.GpuOverflow}";
+                string lineMatchDetail = $"layerNum={standardlayer.layerNum};lineshape={standardlayer.lineshape};recall={lineMatch.Recall:F3};precision={lineMatch.Precision:F3};missing={lineMatch.MissingRatio:F3};extra={lineMatch.ExtraRatio:F3};p95={lineMatch.P95Distance:F1};bestOffset={lineMatch.BestOffset};studentLineType={lineMatch.StudentLineType};standardLineType={standardlayer.lineType};patterned={lineMatch.IsPatternedMode};geometry={lineMatch.GeometryPrecision:F3};macro={lineMatch.MacroCoverage:F3};macroLimit={lineMatch.MacroCoverageLimit:F3};span={lineMatch.PatternLengthRatio:F3};endpointMiss={lineMatch.PatternEndpointMiss:F1};endpointLimit={lineMatch.PatternEndpointLimit:F1};extraSpan={lineMatch.PatternExtraSpanRatio:F3};lengthRatio={lineMatch.ProjectedLengthRatio:F3};rawCandidates={lineMatch.RawCandidateCount};corePixels={lineMatch.CorePixelCount};ignoredAuxiliary={lineMatch.IgnoredAuxiliaryPixelCount};extensionPixels={lineMatch.ExtensionPixelCount};rawExtensionPixels={lineMatch.RawExtensionPixelCount};explainedByNeighborStandard={lineMatch.ExplainedByNeighborStandardCount};filteredExtensionPixels={lineMatch.FilteredExtensionPixelCount};trueExtensionRatio={lineMatch.TrueExtensionRatio:F3};trueExtensionRatioBeforeNeighborFilter={lineMatch.TrueExtensionRatioBeforeNeighborFilter:F3};trueExtensionRatioAfterNeighborFilter={lineMatch.TrueExtensionRatioAfterNeighborFilter:F3};scoringStrictness={scoringStrictness};prefilterMode={lineMatch.PrefilterMode};fullCpuFallbackUsed={lineMatch.FullCpuFallbackUsed};fallbackReason={lineMatch.PrefilterFallbackReason};gpuPrefilterEnabled={lineMatch.GpuPrefilterEnabled};gpuPrefilterUsed={lineMatch.GpuPrefilterUsed};gpuPrefilterFallbackReason={lineMatch.GpuPrefilterFallbackReason};roiPixels={lineMatch.GpuRoiPixels};rawOpaqueInRoi={lineMatch.GpuRawOpaqueInRoi};nearCandidates={lineMatch.GpuNearCandidates};ignoredOpaque={lineMatch.GpuIgnoredOpaque};overflow={lineMatch.GpuOverflow}";
                 ScoringPerf.LayerMatchMetric(standardlayer.layerNum, lineMatchDetail);
                 if (ScoringPerf.VerboseLayerLogs)
                 {
@@ -1062,7 +1062,12 @@ namespace jxzt
             public int CorePixelCount;
             public int IgnoredAuxiliaryPixelCount;
             public int ExtensionPixelCount;
+            public int RawExtensionPixelCount;
+            public int ExplainedByNeighborStandardCount;
+            public int FilteredExtensionPixelCount;
             public float TrueExtensionRatio;
+            public float TrueExtensionRatioBeforeNeighborFilter;
+            public float TrueExtensionRatioAfterNeighborFilter;
             public Vector2Int BestOffset;
             public linetype StudentLineType;
             public Vector2 ErrorPosition;
@@ -1097,7 +1102,12 @@ namespace jxzt
             public List<PositionInt> IgnoredAuxiliaryPixels;
             public int IgnoredAuxiliaryCount;
             public int RawCandidateCount;
+            public int RawExtensionPixelCount;
+            public int ExplainedByNeighborStandardCount;
+            public int FilteredExtensionPixelCount;
             public float TrueExtensionRatio;
+            public float TrueExtensionRatioBeforeNeighborFilter;
+            public float TrueExtensionRatioAfterNeighborFilter;
             public float EvidenceProjectedLength;
 
             public int GetIgnoredAuxiliaryCount()
@@ -1154,7 +1164,12 @@ namespace jxzt
             public int AssignedCoreCount;
             public int IgnoredAuxiliaryCount;
             public int ExtensionPixelCount;
+            public int RawExtensionPixelCount;
+            public int ExplainedByNeighborStandardCount;
+            public int FilteredExtensionPixelCount;
             public float TrueExtensionRatio;
+            public float TrueExtensionRatioBeforeNeighborFilter;
+            public float TrueExtensionRatioAfterNeighborFilter;
             public bool GpuPrefilterUsed;
             public int GpuRoiPixels;
             public int GpuRawOpaqueInRoi;
@@ -1780,6 +1795,7 @@ namespace jxzt
                 PolylineSegmentGuide segment = group.Segments[i];
                 List<PositionInt> segmentCandidates = GetPolylineSegmentCandidatePixels(candidatePixels, p0[i], p1[i], axis[i], length[i], group.Tolerance);
                 segmentEvidence[i] = BuildLineStudentEvidence(segmentCandidates, shiftedSegmentPixels[i], axis[i], group.Tolerance, IsPatternedLineType(segment.Layer.lineType));
+                ApplyPolylineNeighborExtensionFilter(segmentEvidence[i], group, i, bestOffset, axis[i], shiftedSegmentPixels, shiftedSegmentPixels[i], group.Tolerance);
                 assignedPixels[i] = segmentEvidence[i].CorePixels;
                 extensionPixels[i] = segmentEvidence[i].ExtensionPixels;
                 AddUniquePixels(assignedPixels[i], groupCorePixels, groupCoreKeys);
@@ -1817,7 +1833,6 @@ namespace jxzt
 
                 ErrorReson error = ErrorReson.正确;
                 Vector2 errorPosition = GetAveragePoint(shiftedSegmentPixels[i]);
-                float longLengthRatioLimit = IsHomeworkRelaxed() ? 1.18f : 1.08f;
                 if (assignedPixels[i].Count == 0 && extensionPixels[i].Count == 0)
                 {
                     error = ErrorReson.图线不在或偏离正确位置;
@@ -1834,9 +1849,7 @@ namespace jxzt
                     error = ErrorReson.线型使用错误;
                     errorPosition = assignedPixels[i].Count > 0 ? GetAveragePoint(assignedPixels[i]) : errorPosition;
                 }
-                else if (extensionPixels[i].Count > 0
-                         && trueExtensionRatio > GetTrueExtensionLongLimit(length[i], group.Tolerance)
-                         && lengthRatio > longLengthRatioLimit)
+                else if (ShouldFlagPolylineSegmentTooLong(extensionPixels[i], assignedPixels[i], trueExtensionRatio, lengthRatio, p0[i], axis[i], length[i], group.Tolerance))
                 {
                     error = ErrorReson.图线过长;
                     errorPosition = extraPosition;
@@ -1864,7 +1877,12 @@ namespace jxzt
                     AssignedCoreCount = assignedPixels[i].Count,
                     IgnoredAuxiliaryCount = segmentEvidence[i]?.GetIgnoredAuxiliaryCount() ?? 0,
                     ExtensionPixelCount = extensionPixels[i].Count,
+                    RawExtensionPixelCount = segmentEvidence[i]?.RawExtensionPixelCount ?? extensionPixels[i].Count,
+                    ExplainedByNeighborStandardCount = segmentEvidence[i]?.ExplainedByNeighborStandardCount ?? 0,
+                    FilteredExtensionPixelCount = segmentEvidence[i]?.FilteredExtensionPixelCount ?? extensionPixels[i].Count,
                     TrueExtensionRatio = trueExtensionRatio,
+                    TrueExtensionRatioBeforeNeighborFilter = segmentEvidence[i]?.TrueExtensionRatioBeforeNeighborFilter ?? trueExtensionRatio,
+                    TrueExtensionRatioAfterNeighborFilter = segmentEvidence[i]?.TrueExtensionRatioAfterNeighborFilter ?? trueExtensionRatio,
                     GpuPrefilterUsed = false,
                     GpuFallbackReason = "FULL_CPU fallback",
                     PrefilterMode = PrefilterModeFullCpu,
@@ -1874,7 +1892,7 @@ namespace jxzt
 
             if (ScoringPerf.VerboseLayerLogs)
             {
-                string detail = string.Join("; ", segmentResults.Select(kv => $"layerNum={kv.Key},lineshape={GetPolylineSegmentLineShapeForLog(group, kv.Key)},error={kv.Value.Error},rawCandidates={kv.Value.RawCandidateCount},assignedCore={kv.Value.AssignedCoreCount},ignoredAuxiliary={kv.Value.IgnoredAuxiliaryCount},extensionPixels={kv.Value.ExtensionPixelCount},trueExtensionRatio={kv.Value.TrueExtensionRatio:F3},coverage={kv.Value.Coverage:F2},lengthRatio={kv.Value.LengthRatio:F2},studentType={kv.Value.StudentLineType},prefilterMode={kv.Value.PrefilterMode},fullCpuFallbackUsed={kv.Value.FullCpuFallbackUsed},fallbackReason={kv.Value.GpuFallbackReason},roiPixels={kv.Value.GpuRoiPixels},rawOpaqueInRoi={kv.Value.GpuRawOpaqueInRoi},nearCandidates={kv.Value.GpuNearCandidates},ignoredOpaque={kv.Value.GpuIgnoredOpaque},overflow={kv.Value.GpuOverflow}"));
+                string detail = string.Join("; ", segmentResults.Select(kv => $"layerNum={kv.Key},lineshape={GetPolylineSegmentLineShapeForLog(group, kv.Key)},error={kv.Value.Error},rawCandidates={kv.Value.RawCandidateCount},assignedCore={kv.Value.AssignedCoreCount},ignoredAuxiliary={kv.Value.IgnoredAuxiliaryCount},extensionPixels={kv.Value.ExtensionPixelCount},rawExtensionPixels={kv.Value.RawExtensionPixelCount},explainedByNeighborStandard={kv.Value.ExplainedByNeighborStandardCount},filteredExtensionPixels={kv.Value.FilteredExtensionPixelCount},trueExtensionRatio={kv.Value.TrueExtensionRatio:F3},trueExtensionRatioBeforeNeighborFilter={kv.Value.TrueExtensionRatioBeforeNeighborFilter:F3},trueExtensionRatioAfterNeighborFilter={kv.Value.TrueExtensionRatioAfterNeighborFilter:F3},coverage={kv.Value.Coverage:F2},lengthRatio={kv.Value.LengthRatio:F2},studentType={kv.Value.StudentLineType},prefilterMode={kv.Value.PrefilterMode},fullCpuFallbackUsed={kv.Value.FullCpuFallbackUsed},fallbackReason={kv.Value.GpuFallbackReason},roiPixels={kv.Value.GpuRoiPixels},rawOpaqueInRoi={kv.Value.GpuRawOpaqueInRoi},nearCandidates={kv.Value.GpuNearCandidates},ignoredOpaque={kv.Value.GpuIgnoredOpaque},overflow={kv.Value.GpuOverflow}"));
                 Debug.Log($"[AnswerCheck] 折线组判分 group={group.GroupId}, scoringStrictness={scoringStrictness}, prefilterMode={PrefilterModeFullCpu}, precision={groupPrecision:F3}, extra={groupExtraRatio:F3}, offset={bestOffset}, {detail}");
             }
 
@@ -2014,6 +2032,17 @@ namespace jxzt
             string groupFallbackReason)
         {
             int segmentCount = group.Segments.Count;
+            for (int i = 0; i < segmentCount; i++)
+            {
+                if (segmentEvidence[i] == null)
+                {
+                    continue;
+                }
+
+                ApplyPolylineNeighborExtensionFilter(segmentEvidence[i], group, i, bestOffset, axis[i], shiftedSegmentPixels, shiftedSegmentPixels[i], group.Tolerance);
+                extensionPixels[i] = segmentEvidence[i].ExtensionPixels;
+            }
+
             List<PositionInt> groupCorePixels = new List<PositionInt>();
             List<PositionInt> groupExtensionPixels = new List<PositionInt>();
             HashSet<long> groupCoreKeys = new HashSet<long>();
@@ -2056,7 +2085,6 @@ namespace jxzt
 
                 ErrorReson error = ErrorReson.正确;
                 Vector2 errorPosition = GetAveragePoint(shiftedSegmentPixels[i]);
-                float longLengthRatioLimit = IsHomeworkRelaxed() ? 1.18f : 1.08f;
                 if (assignedPixels[i].Count == 0 && extensionPixels[i].Count == 0)
                 {
                     error = ErrorReson.图线不在或偏离正确位置;
@@ -2073,9 +2101,7 @@ namespace jxzt
                     error = ErrorReson.线型使用错误;
                     errorPosition = assignedPixels[i].Count > 0 ? GetAveragePoint(assignedPixels[i]) : errorPosition;
                 }
-                else if (extensionPixels[i].Count > 0
-                         && trueExtensionRatio > GetTrueExtensionLongLimit(length[i], group.Tolerance)
-                         && lengthRatio > longLengthRatioLimit)
+                else if (ShouldFlagPolylineSegmentTooLong(extensionPixels[i], assignedPixels[i], trueExtensionRatio, lengthRatio, p0[i], axis[i], length[i], group.Tolerance))
                 {
                     error = ErrorReson.图线过长;
                     errorPosition = extraPosition;
@@ -2111,7 +2137,12 @@ namespace jxzt
                     AssignedCoreCount = assignedPixels[i].Count,
                     IgnoredAuxiliaryCount = segmentEvidence[i]?.GetIgnoredAuxiliaryCount() ?? 0,
                     ExtensionPixelCount = extensionPixels[i].Count,
+                    RawExtensionPixelCount = segmentEvidence[i]?.RawExtensionPixelCount ?? extensionPixels[i].Count,
+                    ExplainedByNeighborStandardCount = segmentEvidence[i]?.ExplainedByNeighborStandardCount ?? 0,
+                    FilteredExtensionPixelCount = segmentEvidence[i]?.FilteredExtensionPixelCount ?? extensionPixels[i].Count,
                     TrueExtensionRatio = trueExtensionRatio,
+                    TrueExtensionRatioBeforeNeighborFilter = segmentEvidence[i]?.TrueExtensionRatioBeforeNeighborFilter ?? trueExtensionRatio,
+                    TrueExtensionRatioAfterNeighborFilter = segmentEvidence[i]?.TrueExtensionRatioAfterNeighborFilter ?? trueExtensionRatio,
                     GpuPrefilterUsed = segmentPrefilterMode == PrefilterModeGpu,
                     GpuRoiPixels = gpuCounters.RoiPixelCount,
                     GpuRawOpaqueInRoi = gpuCounters.RawOpaqueInRoiCount,
@@ -2126,7 +2157,7 @@ namespace jxzt
 
             if (ScoringPerf.VerboseLayerLogs)
             {
-                string detail = string.Join("; ", results.Select(kv => $"layerNum={kv.Key},lineshape={GetPolylineSegmentLineShapeForLog(group, kv.Key)},error={kv.Value.Error},rawCandidates={kv.Value.RawCandidateCount},assignedCore={kv.Value.AssignedCoreCount},ignoredAuxiliary={kv.Value.IgnoredAuxiliaryCount},extensionPixels={kv.Value.ExtensionPixelCount},trueExtensionRatio={kv.Value.TrueExtensionRatio:F3},coverage={kv.Value.Coverage:F2},lengthRatio={kv.Value.LengthRatio:F2},studentType={kv.Value.StudentLineType},prefilterMode={kv.Value.PrefilterMode},fullCpuFallbackUsed={kv.Value.FullCpuFallbackUsed},fallbackReason={kv.Value.GpuFallbackReason},roiPixels={kv.Value.GpuRoiPixels},rawOpaqueInRoi={kv.Value.GpuRawOpaqueInRoi},nearCandidates={kv.Value.GpuNearCandidates},ignoredOpaque={kv.Value.GpuIgnoredOpaque},overflow={kv.Value.GpuOverflow}"));
+                string detail = string.Join("; ", results.Select(kv => $"layerNum={kv.Key},lineshape={GetPolylineSegmentLineShapeForLog(group, kv.Key)},error={kv.Value.Error},rawCandidates={kv.Value.RawCandidateCount},assignedCore={kv.Value.AssignedCoreCount},ignoredAuxiliary={kv.Value.IgnoredAuxiliaryCount},extensionPixels={kv.Value.ExtensionPixelCount},rawExtensionPixels={kv.Value.RawExtensionPixelCount},explainedByNeighborStandard={kv.Value.ExplainedByNeighborStandardCount},filteredExtensionPixels={kv.Value.FilteredExtensionPixelCount},trueExtensionRatio={kv.Value.TrueExtensionRatio:F3},trueExtensionRatioBeforeNeighborFilter={kv.Value.TrueExtensionRatioBeforeNeighborFilter:F3},trueExtensionRatioAfterNeighborFilter={kv.Value.TrueExtensionRatioAfterNeighborFilter:F3},coverage={kv.Value.Coverage:F2},lengthRatio={kv.Value.LengthRatio:F2},studentType={kv.Value.StudentLineType},prefilterMode={kv.Value.PrefilterMode},fullCpuFallbackUsed={kv.Value.FullCpuFallbackUsed},fallbackReason={kv.Value.GpuFallbackReason},roiPixels={kv.Value.GpuRoiPixels},rawOpaqueInRoi={kv.Value.GpuRawOpaqueInRoi},nearCandidates={kv.Value.GpuNearCandidates},ignoredOpaque={kv.Value.GpuIgnoredOpaque},overflow={kv.Value.GpuOverflow}"));
                 Debug.Log($"[AnswerCheck] 折线组判分 group={group.GroupId}, scoringStrictness={scoringStrictness}, prefilterMode={groupPrefilterMode}, precision={groupPrecision:F3}, extra={groupExtraRatio:F3}, offset={bestOffset}, {detail}");
             }
 
@@ -2162,7 +2193,12 @@ namespace jxzt
                     AssignedCoreCount = 0,
                     IgnoredAuxiliaryCount = 0,
                     ExtensionPixelCount = 0,
+                    RawExtensionPixelCount = 0,
+                    ExplainedByNeighborStandardCount = 0,
+                    FilteredExtensionPixelCount = 0,
                     TrueExtensionRatio = 0f,
+                    TrueExtensionRatioBeforeNeighborFilter = 0f,
+                    TrueExtensionRatioAfterNeighborFilter = 0f,
                     GpuPrefilterUsed = false,
                     GpuFallbackReason = string.Empty,
                     PrefilterMode = string.Empty,
@@ -2287,6 +2323,50 @@ namespace jxzt
             return extraLength / length;
         }
 
+        private bool HasSignificantEndpointExtension(List<PositionInt> extensionPixels, Vector2 p0, Vector2 axis, float length, float tolerance)
+        {
+            if (extensionPixels == null || extensionPixels.Count == 0 || length <= 0f)
+            {
+                return false;
+            }
+
+            axis = axis.sqrMagnitude > 0.0001f ? axis.normalized : Vector2.right;
+            float endpointSlack = Mathf.Max(tolerance * 2f, 8f);
+            foreach (var point in extensionPixels)
+            {
+                float projection = Vector2.Dot(new Vector2(point.x, point.y) - p0, axis);
+                if (projection < -endpointSlack || projection > length + endpointSlack)
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        private bool HasSignificantEndpointExtension(List<PositionInt> extensionPixels, List<PositionInt> shiftedStandardPixels, Vector2 axis, float tolerance)
+        {
+            if (extensionPixels == null || extensionPixels.Count == 0
+                || shiftedStandardPixels == null || shiftedStandardPixels.Count == 0)
+            {
+                return false;
+            }
+
+            axis = axis.sqrMagnitude > 0.0001f ? axis.normalized : Vector2.right;
+            ProjectionStats standardStats = GetProjectionStats(shiftedStandardPixels, axis);
+            float endpointSlack = Mathf.Max(tolerance * 2f, 8f);
+            foreach (var point in extensionPixels)
+            {
+                float projection = Vector2.Dot(new Vector2(point.x, point.y), axis);
+                if (projection < standardStats.Min - endpointSlack || projection > standardStats.Max + endpointSlack)
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
         private float GetPolylineSegmentRightCoverage(float length)
         {
             if (IsHomeworkRelaxed())
@@ -2315,6 +2395,41 @@ namespace jxzt
             }
 
             return 0.72f;
+        }
+
+        private bool ShouldFlagPolylineSegmentTooLong(
+            List<PositionInt> filteredExtensionPixels,
+            List<PositionInt> assignedPixels,
+            float trueExtensionRatioAfterNeighborFilter,
+            float lengthRatioAfterNeighborFilter,
+            Vector2 p0,
+            Vector2 axis,
+            float length,
+            float tolerance)
+        {
+            if (filteredExtensionPixels == null || filteredExtensionPixels.Count == 0)
+            {
+                return false;
+            }
+
+            if (!HasSignificantEndpointExtension(filteredExtensionPixels, p0, axis, length, tolerance))
+            {
+                return false;
+            }
+
+            if (IsHomeworkRelaxed())
+            {
+                int assignedCount = assignedPixels?.Count ?? 0;
+                int minFilteredExtensionPixels = Mathf.Max(30, Mathf.CeilToInt(assignedCount * 0.25f));
+                return filteredExtensionPixels.Count >= minFilteredExtensionPixels
+                       && trueExtensionRatioAfterNeighborFilter > 0.35f
+                       && lengthRatioAfterNeighborFilter > 1.35f;
+            }
+
+            float trueExtensionLongLimit = GetTrueExtensionLongLimit(length, tolerance);
+            float longLengthRatioLimit = 1.08f;
+            return trueExtensionRatioAfterNeighborFilter > trueExtensionLongLimit
+                   && lengthRatioAfterNeighborFilter > longLengthRatioLimit;
         }
 
         private float DistancePointToSegmentSq(Vector2 point, Vector2 a, Vector2 b, out float t)
@@ -2591,11 +2706,17 @@ namespace jxzt
             if (standardLayer.lineshape == lineshape.直线)
             {
                 evidence = BuildLineStudentEvidence(studentCandidatePixels, shiftedStandardPixels, mainAxis, result.Tolerance, usePatternedLineMatch);
+                ApplyNeighborStandardExtensionFilter(evidence, standardLayer, result.BestOffset, mainAxis, shiftedStandardPixels, result.Tolerance);
                 result.RawCandidateCount = evidence.RawCandidateCount;
                 result.CorePixelCount = evidence.CorePixels.Count;
                 result.IgnoredAuxiliaryPixelCount = evidence.GetIgnoredAuxiliaryCount();
                 result.ExtensionPixelCount = evidence.ExtensionPixels.Count;
+                result.RawExtensionPixelCount = evidence.RawExtensionPixelCount;
+                result.ExplainedByNeighborStandardCount = evidence.ExplainedByNeighborStandardCount;
+                result.FilteredExtensionPixelCount = evidence.FilteredExtensionPixelCount;
                 result.TrueExtensionRatio = evidence.TrueExtensionRatio;
+                result.TrueExtensionRatioBeforeNeighborFilter = evidence.TrueExtensionRatioBeforeNeighborFilter;
+                result.TrueExtensionRatioAfterNeighborFilter = evidence.TrueExtensionRatioAfterNeighborFilter;
 
                 scoreStudentPixels = evidence.CorePixels;
                 spanStudentPixels = evidence.GetCoreAndExtensionPixels();
@@ -2612,7 +2733,12 @@ namespace jxzt
                 result.CorePixelCount = studentCandidatePixels.Count;
                 result.IgnoredAuxiliaryPixelCount = 0;
                 result.ExtensionPixelCount = 0;
+                result.RawExtensionPixelCount = 0;
+                result.ExplainedByNeighborStandardCount = 0;
+                result.FilteredExtensionPixelCount = 0;
                 result.TrueExtensionRatio = 0f;
+                result.TrueExtensionRatioBeforeNeighborFilter = 0f;
+                result.TrueExtensionRatioAfterNeighborFilter = 0f;
             }
 
             if (usePatternedLineMatch)
@@ -2780,7 +2906,8 @@ namespace jxzt
                 result.IsTooLong = result.Recall >= result.RightLimit
                                    && evidence.ExtensionPixels.Count > 0
                                    && evidence.TrueExtensionRatio > trueExtensionLongLimit
-                                   && lengthRatio > longLengthRatioLimit;
+                                   && lengthRatio > longLengthRatioLimit
+                                   && HasSignificantEndpointExtension(evidence.ExtensionPixels, shiftedStandardPixels, mainAxis, result.Tolerance);
             }
             else
             {
@@ -2988,7 +3115,8 @@ namespace jxzt
                                && evidence != null
                                && evidence.ExtensionPixels.Count > 0
                                && (result.PatternLengthRatio > patternMaxLengthRatio
-                                   || result.PatternExtraSpanRatio > patternMaxExtraSpanRatio);
+                                   || result.PatternExtraSpanRatio > patternMaxExtraSpanRatio)
+                               && HasSignificantEndpointExtension(evidence.ExtensionPixels, shiftedStandardPixels, axis, result.Tolerance);
             result.ErrorPosition = result.GeometryPrecision < patternGeometryLimit
                 ? result.ExtraErrorPosition
                 : (result.IsTooLong ? result.ExtraErrorPosition : result.MissingErrorPosition);
@@ -3140,6 +3268,11 @@ namespace jxzt
                     evidence.TrueExtensionRatio = extraSpan / standardLength;
                 }
             }
+
+            evidence.RawExtensionPixelCount = evidence.ExtensionPixels.Count;
+            evidence.FilteredExtensionPixelCount = evidence.ExtensionPixels.Count;
+            evidence.TrueExtensionRatioBeforeNeighborFilter = evidence.TrueExtensionRatio;
+            evidence.TrueExtensionRatioAfterNeighborFilter = evidence.TrueExtensionRatio;
 
             return evidence;
         }
@@ -4335,6 +4468,291 @@ namespace jxzt
             }
 
             return filtered.Count > 0 ? filtered : candidatePixels;
+        }
+
+        private void ApplyNeighborStandardExtensionFilter(
+            LineStudentEvidence evidence,
+            LayerManager currentLayer,
+            Vector2Int currentOffset,
+            Vector2 currentAxis,
+            List<PositionInt> shiftedCurrentPixels,
+            float tolerance)
+        {
+            if (evidence == null)
+            {
+                return;
+            }
+
+            EnsureLineEvidenceExtensionStats(evidence, shiftedCurrentPixels, currentAxis);
+            if (evidence.ExtensionPixels == null || evidence.ExtensionPixels.Count == 0)
+            {
+                return;
+            }
+
+            evidence.TrueExtensionRatioBeforeNeighborFilter = evidence.TrueExtensionRatio;
+            evidence.RawExtensionPixelCount = evidence.ExtensionPixels.Count;
+            evidence.ExtensionPixels = FilterExtensionPixelsExplainedByOtherStandardLayers(
+                evidence.ExtensionPixels,
+                currentLayer,
+                currentOffset,
+                currentAxis,
+                shiftedCurrentPixels,
+                tolerance,
+                out int explainedByNeighborStandard);
+            evidence.ExplainedByNeighborStandardCount = explainedByNeighborStandard;
+            EnsureLineEvidenceExtensionStats(evidence, shiftedCurrentPixels, currentAxis);
+        }
+
+        private void ApplyPolylineNeighborExtensionFilter(
+            LineStudentEvidence evidence,
+            PolylineGroup group,
+            int segmentIndex,
+            Vector2Int currentOffset,
+            Vector2 currentAxis,
+            List<PositionInt>[] shiftedSegmentPixels,
+            List<PositionInt> shiftedCurrentPixels,
+            float tolerance)
+        {
+            if (evidence == null)
+            {
+                return;
+            }
+
+            EnsureLineEvidenceExtensionStats(evidence, shiftedCurrentPixels, currentAxis);
+            if (evidence.ExtensionPixels == null || evidence.ExtensionPixels.Count == 0)
+            {
+                return;
+            }
+
+            evidence.TrueExtensionRatioBeforeNeighborFilter = evidence.TrueExtensionRatio;
+            evidence.RawExtensionPixelCount = evidence.ExtensionPixels.Count;
+            evidence.ExtensionPixels = FilterPolylineExtensionPixelsExplainedByGroupOrNeighborStandard(
+                evidence.ExtensionPixels,
+                group,
+                segmentIndex,
+                currentOffset,
+                currentAxis,
+                shiftedSegmentPixels,
+                shiftedCurrentPixels,
+                tolerance,
+                out int explainedByNeighborStandard);
+            evidence.ExplainedByNeighborStandardCount = explainedByNeighborStandard;
+            EnsureLineEvidenceExtensionStats(evidence, shiftedCurrentPixels, currentAxis);
+        }
+
+        private void EnsureLineEvidenceExtensionStats(LineStudentEvidence evidence, List<PositionInt> shiftedStandardPixels, Vector2 axis)
+        {
+            if (evidence == null)
+            {
+                return;
+            }
+
+            if (evidence.ExtensionPixels == null)
+            {
+                evidence.ExtensionPixels = new List<PositionInt>();
+            }
+            if (evidence.RawExtensionPixelCount <= 0)
+            {
+                evidence.RawExtensionPixelCount = evidence.ExtensionPixels.Count;
+            }
+
+            evidence.FilteredExtensionPixelCount = evidence.ExtensionPixels.Count;
+            evidence.TrueExtensionRatio = 0f;
+            evidence.EvidenceProjectedLength = 0f;
+
+            if (shiftedStandardPixels == null || shiftedStandardPixels.Count == 0)
+            {
+                evidence.TrueExtensionRatioAfterNeighborFilter = 0f;
+                return;
+            }
+
+            axis = axis.sqrMagnitude > 0.0001f ? axis.normalized : Vector2.right;
+            ProjectionStats standardStats = GetProjectionStats(shiftedStandardPixels, axis);
+            float standardLength = Mathf.Max(1f, standardStats.Length);
+            List<PositionInt> evidenceSpanPixels = evidence.GetCoreAndExtensionPixels();
+            if (evidenceSpanPixels.Count > 0)
+            {
+                ProjectionStats evidenceStats = GetProjectionStats(evidenceSpanPixels, axis);
+                evidence.EvidenceProjectedLength = evidenceStats.Length;
+                if (evidence.ExtensionPixels.Count > 0)
+                {
+                    float extraSpan = Mathf.Max(0f, standardStats.Min - evidenceStats.Min)
+                                      + Mathf.Max(0f, evidenceStats.Max - standardStats.Max);
+                    evidence.TrueExtensionRatio = extraSpan / standardLength;
+                }
+            }
+
+            if (evidence.TrueExtensionRatioBeforeNeighborFilter <= 0f)
+            {
+                evidence.TrueExtensionRatioBeforeNeighborFilter = evidence.TrueExtensionRatio;
+            }
+            evidence.TrueExtensionRatioAfterNeighborFilter = evidence.TrueExtensionRatio;
+        }
+
+        private List<PositionInt> FilterPolylineExtensionPixelsExplainedByGroupOrNeighborStandard(
+            List<PositionInt> extensionPixels,
+            PolylineGroup group,
+            int segmentIndex,
+            Vector2Int currentOffset,
+            Vector2 currentAxis,
+            List<PositionInt>[] shiftedSegmentPixels,
+            List<PositionInt> shiftedCurrentPixels,
+            float tolerance,
+            out int explainedByNeighborStandard)
+        {
+            explainedByNeighborStandard = 0;
+            if (extensionPixels == null || extensionPixels.Count == 0)
+            {
+                return new List<PositionInt>();
+            }
+
+            List<PositionInt> filtered = extensionPixels;
+            List<PositionInt> groupNeighborPixels = new List<PositionInt>();
+            if (group != null && shiftedSegmentPixels != null)
+            {
+                for (int i = 0; i < shiftedSegmentPixels.Length; i++)
+                {
+                    if (i == segmentIndex || shiftedSegmentPixels[i] == null || shiftedSegmentPixels[i].Count == 0)
+                    {
+                        continue;
+                    }
+
+                    groupNeighborPixels.AddRange(shiftedSegmentPixels[i]);
+                }
+            }
+
+            if (groupNeighborPixels.Count > 0)
+            {
+                filtered = FilterExtensionPixelsByReferencePixels(filtered, groupNeighborPixels, tolerance, out int explainedByGroup);
+                explainedByNeighborStandard += explainedByGroup;
+            }
+
+            LayerManager currentLayer = group != null
+                && group.Segments != null
+                && segmentIndex >= 0
+                && segmentIndex < group.Segments.Count
+                ? group.Segments[segmentIndex].Layer
+                : null;
+            filtered = FilterExtensionPixelsExplainedByOtherStandardLayers(
+                filtered,
+                currentLayer,
+                currentOffset,
+                currentAxis,
+                shiftedCurrentPixels,
+                tolerance,
+                out int explainedByStandard);
+            explainedByNeighborStandard += explainedByStandard;
+            return filtered;
+        }
+
+        private List<PositionInt> FilterExtensionPixelsExplainedByOtherStandardLayers(
+            List<PositionInt> extensionPixels,
+            LayerManager currentLayer,
+            Vector2Int currentOffset,
+            Vector2 currentAxis,
+            List<PositionInt> shiftedCurrentPixels,
+            float tolerance)
+        {
+            return FilterExtensionPixelsExplainedByOtherStandardLayers(
+                extensionPixels,
+                currentLayer,
+                currentOffset,
+                currentAxis,
+                shiftedCurrentPixels,
+                tolerance,
+                out _);
+        }
+
+        private List<PositionInt> FilterExtensionPixelsExplainedByOtherStandardLayers(
+            List<PositionInt> extensionPixels,
+            LayerManager currentLayer,
+            Vector2Int currentOffset,
+            Vector2 currentAxis,
+            List<PositionInt> shiftedCurrentPixels,
+            float tolerance,
+            out int explainedByNeighborStandard)
+        {
+            explainedByNeighborStandard = 0;
+            if (extensionPixels == null || extensionPixels.Count == 0
+                || currentLayer == null
+                || standardlayer_manager == null
+                || standardlayer_manager.Count <= 1)
+            {
+                return extensionPixels ?? new List<PositionInt>();
+            }
+
+            List<PositionInt> neighborPixels = new List<PositionInt>();
+            foreach (var otherLayer in standardlayer_manager)
+            {
+                if (otherLayer == null
+                    || ReferenceEquals(otherLayer, currentLayer)
+                    || otherLayer.layerNum == currentLayer.layerNum
+                    || otherLayer.lineshape != lineshape.直线
+                    || otherLayer.lineType == linetype.unknown)
+                {
+                    continue;
+                }
+
+                List<PositionInt> otherPixels = GetStandardPixels(otherLayer);
+                if (otherPixels.Count == 0)
+                {
+                    continue;
+                }
+
+                neighborPixels.AddRange(ShiftPositions(otherPixels, currentOffset));
+            }
+
+            return FilterExtensionPixelsByReferencePixels(extensionPixels, neighborPixels, tolerance, out explainedByNeighborStandard);
+        }
+
+        private List<PositionInt> FilterExtensionPixelsByReferencePixels(
+            List<PositionInt> extensionPixels,
+            List<PositionInt> referencePixels,
+            float tolerance,
+            out int explained)
+        {
+            explained = 0;
+            if (extensionPixels == null || extensionPixels.Count == 0)
+            {
+                return new List<PositionInt>();
+            }
+
+            if (referencePixels == null || referencePixels.Count == 0)
+            {
+                return extensionPixels;
+            }
+
+            int nearDistance = Mathf.CeilToInt(Mathf.Max(tolerance * 2.5f, 12f));
+            int nearDistanceSq = nearDistance * nearDistance;
+            PixelBounds queryBounds = ExpandBounds(GetBounds(extensionPixels), nearDistance);
+            bool useDistanceField = UseDistanceFieldNearestSearch && GetBoundsArea(queryBounds) <= MaxDistanceFieldArea;
+            DistanceField referenceDistanceField = null;
+            HashSet<long> referenceSet = null;
+            if (useDistanceField)
+            {
+                referenceDistanceField = DistanceField.Build(referencePixels, queryBounds);
+            }
+            else
+            {
+                referenceSet = BuildPointSet(referencePixels);
+            }
+
+            List<PositionInt> filtered = new List<PositionInt>(extensionPixels.Count);
+            foreach (var point in extensionPixels)
+            {
+                bool explainedByReference = useDistanceField
+                    ? referenceDistanceField.TryGetDistanceSq(point, nearDistanceSq, out _)
+                    : TryFindNearestDistance(referenceSet, point, nearDistance, out float distance) && distance <= nearDistance;
+                if (explainedByReference)
+                {
+                    explained++;
+                    continue;
+                }
+
+                filtered.Add(point);
+            }
+
+            return filtered;
         }
 
         private List<PositionInt> FilterNeighborStandardLinePixels(List<PositionInt> candidatePixels, LayerManager currentLayer, Vector2Int currentOffset, List<PositionInt> shiftedCurrentPixels, Vector2 axis, float tolerance)
