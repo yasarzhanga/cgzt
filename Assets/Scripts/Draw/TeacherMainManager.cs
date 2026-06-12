@@ -2656,11 +2656,33 @@ namespace jxzt
             WebManager.Instance.GetStringFunc(Config.AnswerUpLoad, wwwform, delegate (string s)
             {
                 Debug.Log("上传答案返回数据：" + s);
-                ReturnStateTeacher rs = JsonConvert.DeserializeObject<ReturnStateTeacher>(s);
+                int responseBytes = string.IsNullOrEmpty(s) ? 0 : s.Length;
+                ReturnStateTeacher rs = null;
+                try
+                {
+                    if (!string.IsNullOrWhiteSpace(s))
+                    {
+                        rs = JsonConvert.DeserializeObject<ReturnStateTeacher>(s);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Debug.LogWarning($"[UploadAnswer] 解析上传返回失败: {ex.Message}");
+                }
+
+                if (rs == null)
+                {
+                    Debug.LogWarning($"[UploadAnswer] 上传答案返回为空或格式错误，bytes={responseBytes}");
+                    ScoringPerf.End(ScoringPerf.TitleKey("UploadAnswer", titleIdToUse), $"code=parse_failed;bytes={responseBytes}");
+                    ScoringPerf.EndTitle(titleIdToUse, "uploadCode=parse_failed");
+                    ErrorTipsClear("上传答案失败，服务器返回为空或格式错误");
+                    return;
+                }
+
                 Debug.Log("上传答案返回：" + rs.code);
-                ScoringPerf.End(ScoringPerf.TitleKey("UploadAnswer", titleIdToUse), $"code={rs.code};bytes={(s == null ? 0 : s.Length)}");
+                ScoringPerf.End(ScoringPerf.TitleKey("UploadAnswer", titleIdToUse), $"code={rs.code};bytes={responseBytes}");
                 ScoringPerf.EndTitle(titleIdToUse, $"uploadCode={rs.code}");
-                if (rs.code == 404) TeacherMainManager.instance.ErrorTipsClear("登录失效,请返回登陆界面重新登录", true, true);
+                if (rs.code == 404) (TeacherMainManager.instance ?? this).ErrorTipsClear("登录失效,请返回登陆界面重新登录", true, true);
                 StartCoroutine(AegisAnimation(8));
             });
         }
