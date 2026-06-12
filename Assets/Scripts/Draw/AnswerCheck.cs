@@ -591,7 +591,7 @@ namespace jxzt
                 layer.lineType = lineMatch.StudentLineType;
                 standardlayer.displayError_position = lineMatch.ErrorPosition;
 
-                string lineMatchDetail = $"layerNum={standardlayer.layerNum};lineshape={standardlayer.lineshape};recall={lineMatch.Recall:F3};precision={lineMatch.Precision:F3};missing={lineMatch.MissingRatio:F3};extra={lineMatch.ExtraRatio:F3};p95={lineMatch.P95Distance:F1};bestOffset={lineMatch.BestOffset};studentLineType={lineMatch.StudentLineType};standardLineType={standardlayer.lineType};patterned={lineMatch.IsPatternedMode};geometry={lineMatch.GeometryPrecision:F3};macro={lineMatch.MacroCoverage:F3};macroLimit={lineMatch.MacroCoverageLimit:F3};span={lineMatch.PatternLengthRatio:F3};endpointMiss={lineMatch.PatternEndpointMiss:F1};endpointLimit={lineMatch.PatternEndpointLimit:F1};extraSpan={lineMatch.PatternExtraSpanRatio:F3};lengthRatio={lineMatch.ProjectedLengthRatio:F3};lengthRatioBeforeCompoundFilter={lineMatch.LengthRatioBeforeCompoundFilter:F3};lengthRatioAfterCompoundFilter={lineMatch.LengthRatioAfterCompoundFilter:F3};compoundGroupId={lineMatch.CompoundGroupId};compoundGroupLayers={lineMatch.CompoundGroupLayers};rawCandidates={lineMatch.RawCandidateCount};rawCandidatePixelsBeforeCompoundFilter={lineMatch.RawCandidatePixelsBeforeCompoundFilter};explainedCandidatesByCompoundGroup={lineMatch.ExplainedCandidatesByCompoundGroup};candidatePixelsAfterCompoundFilter={lineMatch.CandidatePixelsAfterCompoundFilter};corePixels={lineMatch.CorePixelCount};ignoredAuxiliary={lineMatch.IgnoredAuxiliaryPixelCount};extensionPixels={lineMatch.ExtensionPixelCount};rawExtensionPixels={lineMatch.RawExtensionPixelCount};explainedByNeighborStandard={lineMatch.ExplainedByNeighborStandardCount};explainedByCompoundGroup={lineMatch.ExplainedByCompoundGroupCount};filteredExtensionPixels={lineMatch.FilteredExtensionPixelCount};trueExtensionRatio={lineMatch.TrueExtensionRatio:F3};trueExtensionRatioBeforeNeighborFilter={lineMatch.TrueExtensionRatioBeforeNeighborFilter:F3};trueExtensionRatioAfterNeighborFilter={lineMatch.TrueExtensionRatioAfterNeighborFilter:F3};trueExtensionRatioBeforeCompoundFilter={lineMatch.TrueExtensionRatioBeforeCompoundFilter:F3};trueExtensionRatioAfterCompoundFilter={lineMatch.TrueExtensionRatioAfterCompoundFilter:F3};scoringStrictness={scoringStrictness};prefilterMode={lineMatch.PrefilterMode};fullCpuFallbackUsed={lineMatch.FullCpuFallbackUsed};fallbackReason={lineMatch.PrefilterFallbackReason};gpuPrefilterEnabled={lineMatch.GpuPrefilterEnabled};gpuPrefilterUsed={lineMatch.GpuPrefilterUsed};gpuPrefilterFallbackReason={lineMatch.GpuPrefilterFallbackReason};roiPixels={lineMatch.GpuRoiPixels};rawOpaqueInRoi={lineMatch.GpuRawOpaqueInRoi};nearCandidates={lineMatch.GpuNearCandidates};ignoredOpaque={lineMatch.GpuIgnoredOpaque};overflow={lineMatch.GpuOverflow}";
+                string lineMatchDetail = $"layerNum={standardlayer.layerNum};lineshape={standardlayer.lineshape};recall={lineMatch.Recall:F3};precision={lineMatch.Precision:F3};missing={lineMatch.MissingRatio:F3};extra={lineMatch.ExtraRatio:F3};p95={lineMatch.P95Distance:F1};bestOffset={lineMatch.BestOffset};studentLineType={lineMatch.StudentLineType};standardLineType={standardlayer.lineType};patterned={lineMatch.IsPatternedMode};geometry={lineMatch.GeometryPrecision:F3};macro={lineMatch.MacroCoverage:F3};macroLimit={lineMatch.MacroCoverageLimit:F3};span={lineMatch.PatternLengthRatio:F3};endpointMiss={lineMatch.PatternEndpointMiss:F1};endpointLimit={lineMatch.PatternEndpointLimit:F1};extraSpan={lineMatch.PatternExtraSpanRatio:F3};lengthRatio={lineMatch.ProjectedLengthRatio:F3};lengthRatioBeforeCompoundFilter={lineMatch.LengthRatioBeforeCompoundFilter:F3};lengthRatioAfterCompoundFilter={lineMatch.LengthRatioAfterCompoundFilter:F3};suppressCurveTooLongByCompoundGroup={lineMatch.SuppressCurveTooLongByCompoundGroup};compoundGroupId={lineMatch.CompoundGroupId};compoundGroupLayers={lineMatch.CompoundGroupLayers};compoundGroupDisabled={lineMatch.CompoundGroupDisabled};compoundGroupConnectionReason={lineMatch.CompoundGroupConnectionReason};rawCandidates={lineMatch.RawCandidateCount};rawCandidatePixelsBeforeCompoundFilter={lineMatch.RawCandidatePixelsBeforeCompoundFilter};explainedCandidatesByCompoundGroup={lineMatch.ExplainedCandidatesByCompoundGroup};candidatePixelsAfterCompoundFilter={lineMatch.CandidatePixelsAfterCompoundFilter};corePixels={lineMatch.CorePixelCount};ignoredAuxiliary={lineMatch.IgnoredAuxiliaryPixelCount};extensionPixels={lineMatch.ExtensionPixelCount};rawExtensionPixels={lineMatch.RawExtensionPixelCount};explainedByNeighborStandard={lineMatch.ExplainedByNeighborStandardCount};explainedByCompoundGroup={lineMatch.ExplainedByCompoundGroupCount};filteredExtensionPixels={lineMatch.FilteredExtensionPixelCount};trueExtensionRatio={lineMatch.TrueExtensionRatio:F3};trueExtensionRatioBeforeNeighborFilter={lineMatch.TrueExtensionRatioBeforeNeighborFilter:F3};trueExtensionRatioAfterNeighborFilter={lineMatch.TrueExtensionRatioAfterNeighborFilter:F3};trueExtensionRatioBeforeCompoundFilter={lineMatch.TrueExtensionRatioBeforeCompoundFilter:F3};trueExtensionRatioAfterCompoundFilter={lineMatch.TrueExtensionRatioAfterCompoundFilter:F3};scoringStrictness={scoringStrictness};prefilterMode={lineMatch.PrefilterMode};fullCpuFallbackUsed={lineMatch.FullCpuFallbackUsed};fallbackReason={lineMatch.PrefilterFallbackReason};gpuPrefilterEnabled={lineMatch.GpuPrefilterEnabled};gpuPrefilterUsed={lineMatch.GpuPrefilterUsed};gpuPrefilterFallbackReason={lineMatch.GpuPrefilterFallbackReason};roiPixels={lineMatch.GpuRoiPixels};rawOpaqueInRoi={lineMatch.GpuRawOpaqueInRoi};nearCandidates={lineMatch.GpuNearCandidates};ignoredOpaque={lineMatch.GpuIgnoredOpaque};overflow={lineMatch.GpuOverflow}";
                 ScoringPerf.LayerMatchMetric(standardlayer.layerNum, lineMatchDetail);
                 if (ScoringPerf.VerboseLayerLogs)
                 {
@@ -1082,11 +1082,14 @@ namespace jxzt
             public float TrueExtensionRatioAfterCompoundFilter;
             public int CompoundGroupId;
             public string CompoundGroupLayers;
+            public bool CompoundGroupDisabled;
+            public string CompoundGroupConnectionReason;
             public int RawCandidatePixelsBeforeCompoundFilter;
             public int ExplainedCandidatesByCompoundGroup;
             public int CandidatePixelsAfterCompoundFilter;
             public float LengthRatioBeforeCompoundFilter;
             public float LengthRatioAfterCompoundFilter;
+            public bool SuppressCurveTooLongByCompoundGroup;
             public Vector2Int BestOffset;
             public linetype StudentLineType;
             public Vector2 ErrorPosition;
@@ -1171,6 +1174,8 @@ namespace jxzt
             public HashSet<int> LayerNums = new HashSet<int>();
             public List<PositionInt> StandardPixels = new List<PositionInt>();
             public float Tolerance;
+            public bool Disabled;
+            public string ConnectionReason;
         }
 
         private sealed class GeometryGuide
@@ -1192,6 +1197,8 @@ namespace jxzt
             public int FilteredCount;
             public int GroupId;
             public string GroupLayers;
+            public bool GroupDisabled;
+            public string ConnectionReason;
         }
 
         private sealed class PolylineSegmentGuide
@@ -1228,11 +1235,14 @@ namespace jxzt
             public float TrueExtensionRatioAfterCompoundFilter;
             public int CompoundGroupId;
             public string CompoundGroupLayers;
+            public bool CompoundGroupDisabled;
+            public string CompoundGroupConnectionReason;
             public int RawCandidatePixelsBeforeCompoundFilter;
             public int ExplainedCandidatesByCompoundGroup;
             public int CandidatePixelsAfterCompoundFilter;
             public float LengthRatioBeforeCompoundFilter;
             public float LengthRatioAfterCompoundFilter;
+            public bool SuppressCurveTooLongByCompoundGroup;
             public bool GpuPrefilterUsed;
             public int GpuRoiPixels;
             public int GpuRawOpaqueInRoi;
@@ -1676,14 +1686,16 @@ namespace jxzt
                 adjacency[i] = new List<int>();
             }
 
+            Dictionary<string, string> connectionReasons = new Dictionary<string, string>();
             for (int i = 0; i < guides.Count; i++)
             {
                 for (int j = i + 1; j < guides.Count; j++)
                 {
-                    if (AreGeometryGuidesConnected(guides[i], guides[j]))
+                    if (AreGeometryGuidesConnected(guides[i], guides[j], out string connectionReason))
                     {
                         adjacency[i].Add(j);
                         adjacency[j].Add(i);
+                        connectionReasons[$"{i}:{j}"] = connectionReason;
                     }
                 }
             }
@@ -1727,6 +1739,7 @@ namespace jxzt
 
                 HashSet<long> seenPixels = new HashSet<long>();
                 float maxTolerance = 0f;
+                List<string> groupConnectionReasons = new List<string>();
                 foreach (int index in component)
                 {
                     GeometryGuide guide = guides[index];
@@ -1740,9 +1753,27 @@ namespace jxzt
                             group.StandardPixels.Add(point);
                         }
                     }
+
+                    foreach (int next in adjacency[index])
+                    {
+                        if (!component.Contains(next))
+                        {
+                            continue;
+                        }
+
+                        int a = Mathf.Min(index, next);
+                        int b = Mathf.Max(index, next);
+                        string key = $"{a}:{b}";
+                        if (connectionReasons.TryGetValue(key, out string reason) && !groupConnectionReasons.Contains(reason))
+                        {
+                            groupConnectionReasons.Add(reason);
+                        }
+                    }
                 }
 
                 group.Tolerance = Mathf.Max(8f, maxTolerance);
+                group.ConnectionReason = string.Join("|", groupConnectionReasons);
+                group.Disabled = group.Layers.Count > 6;
                 _compoundContourGroups.Add(group);
                 foreach (var layer in group.Layers)
                 {
@@ -1751,7 +1782,12 @@ namespace jxzt
 
                 if (ScoringPerf.VerboseLayerLogs)
                 {
-                    Debug.Log($"[AnswerCheck] CompoundContourGroup group={group.GroupId} layers={DescribeCompoundGroupLayers(group)}");
+                    Debug.Log($"[AnswerCheck] CompoundContourGroup group={group.GroupId} layers={DescribeCompoundGroupLayers(group)} count={group.Layers.Count} disabled={group.Disabled} connectionReasons={group.ConnectionReason}");
+                }
+
+                if (group.Disabled)
+                {
+                    Debug.LogWarning($"[AnswerCheck] CompoundContourGroup too large, disabled group-aware overlength filtering group={group.GroupId} layers={DescribeCompoundGroupLayers(group)}");
                 }
             }
         }
@@ -1886,8 +1922,9 @@ namespace jxzt
             };
         }
 
-        private bool AreGeometryGuidesConnected(GeometryGuide a, GeometryGuide b)
+        private bool AreGeometryGuidesConnected(GeometryGuide a, GeometryGuide b, out string connectionReason)
         {
+            connectionReason = string.Empty;
             if (a == null || b == null
                 || a.Layer == null || b.Layer == null
                 || ReferenceEquals(a.Layer, b.Layer)
@@ -1903,7 +1940,7 @@ namespace jxzt
                 return false;
             }
 
-            float joinTolerance = Mathf.Clamp(Mathf.Max(10f, Mathf.Min(a.Tolerance, b.Tolerance) * 1.8f), 10f, 28f);
+            float joinTolerance = Mathf.Clamp(Mathf.Max(10f, Mathf.Min(a.Tolerance, b.Tolerance) * 1.5f), 10f, 22f);
             if (!BoundsIntersect(ExpandBounds(a.Bounds, Mathf.CeilToInt(joinTolerance)), ExpandBounds(b.Bounds, Mathf.CeilToInt(joinTolerance))))
             {
                 return false;
@@ -1916,23 +1953,31 @@ namespace jxzt
                 {
                     if ((endpointA - endpointB).sqrMagnitude <= joinToleranceSq)
                     {
+                        connectionReason = $"endpoint-endpoint:{a.Layer.layerNum}-{b.Layer.layerNum}";
                         return true;
                     }
                 }
             }
 
+            if (a.Shape == lineshape.直线 && b.Shape == lineshape.直线)
+            {
+                return false;
+            }
+
             foreach (var endpointA in a.Endpoints)
             {
-                if (IsEndpointNearOtherGuideEndpoint(endpointA, b, joinTolerance))
+                if (IsEndpointNearOtherGuideEndpoint(endpointA, b, joinTolerance, out string endpointReason))
                 {
+                    connectionReason = $"endpoint-pixels:{a.Layer.layerNum}->{b.Layer.layerNum}:{endpointReason}";
                     return true;
                 }
             }
 
             foreach (var endpointB in b.Endpoints)
             {
-                if (IsEndpointNearOtherGuideEndpoint(endpointB, a, joinTolerance))
+                if (IsEndpointNearOtherGuideEndpoint(endpointB, a, joinTolerance, out string endpointReason))
                 {
+                    connectionReason = $"endpoint-pixels:{b.Layer.layerNum}->{a.Layer.layerNum}:{endpointReason}";
                     return true;
                 }
             }
@@ -1940,8 +1985,9 @@ namespace jxzt
             return false;
         }
 
-        private bool IsEndpointNearOtherGuideEndpoint(Vector2 endpoint, GeometryGuide other, float joinTolerance)
+        private bool IsEndpointNearOtherGuideEndpoint(Vector2 endpoint, GeometryGuide other, float joinTolerance, out string reason)
         {
+            reason = string.Empty;
             if (other == null || other.Pixels == null || other.Pixels.Count == 0 || other.Endpoints == null || other.Endpoints.Length == 0)
             {
                 return false;
@@ -1972,6 +2018,7 @@ namespace jxzt
             {
                 if ((nearestVector - otherEndpoint).sqrMagnitude <= endpointLimitSq)
                 {
+                    reason = $"nearestNearEndpoint:{other.Layer?.layerNum}";
                     return true;
                 }
             }
@@ -2322,11 +2369,14 @@ namespace jxzt
                     TrueExtensionRatioAfterCompoundFilter = segmentEvidence[i]?.TrueExtensionRatioAfterCompoundFilter ?? trueExtensionRatio,
                     CompoundGroupId = segmentCompoundGroup?.GroupId ?? 0,
                     CompoundGroupLayers = segmentCompoundGroup != null ? DescribeCompoundGroupLayers(segmentCompoundGroup) : string.Empty,
+                    CompoundGroupDisabled = segmentCompoundGroup != null && segmentCompoundGroup.Disabled,
+                    CompoundGroupConnectionReason = segmentCompoundGroup != null ? segmentCompoundGroup.ConnectionReason : string.Empty,
                     RawCandidatePixelsBeforeCompoundFilter = segmentEvidence[i]?.RawCandidateCount ?? 0,
                     ExplainedCandidatesByCompoundGroup = 0,
                     CandidatePixelsAfterCompoundFilter = segmentEvidence[i]?.RawCandidateCount ?? 0,
                     LengthRatioBeforeCompoundFilter = lengthRatioBeforeCompoundFilter,
                     LengthRatioAfterCompoundFilter = lengthRatio,
+                    SuppressCurveTooLongByCompoundGroup = false,
                     GpuPrefilterUsed = false,
                     GpuFallbackReason = "FULL_CPU fallback",
                     PrefilterMode = PrefilterModeFullCpu,
@@ -2597,11 +2647,14 @@ namespace jxzt
                     TrueExtensionRatioAfterCompoundFilter = segmentEvidence[i]?.TrueExtensionRatioAfterCompoundFilter ?? trueExtensionRatio,
                     CompoundGroupId = segmentCompoundGroup?.GroupId ?? 0,
                     CompoundGroupLayers = segmentCompoundGroup != null ? DescribeCompoundGroupLayers(segmentCompoundGroup) : string.Empty,
+                    CompoundGroupDisabled = segmentCompoundGroup != null && segmentCompoundGroup.Disabled,
+                    CompoundGroupConnectionReason = segmentCompoundGroup != null ? segmentCompoundGroup.ConnectionReason : string.Empty,
                     RawCandidatePixelsBeforeCompoundFilter = segmentEvidence[i]?.RawCandidateCount ?? 0,
                     ExplainedCandidatesByCompoundGroup = 0,
                     CandidatePixelsAfterCompoundFilter = segmentEvidence[i]?.RawCandidateCount ?? 0,
                     LengthRatioBeforeCompoundFilter = lengthRatioBeforeCompoundFilter,
                     LengthRatioAfterCompoundFilter = lengthRatio,
+                    SuppressCurveTooLongByCompoundGroup = false,
                     GpuPrefilterUsed = segmentPrefilterMode == PrefilterModeGpu,
                     GpuRoiPixels = gpuCounters.RoiPixelCount,
                     GpuRawOpaqueInRoi = gpuCounters.RawOpaqueInRoiCount,
@@ -2632,7 +2685,7 @@ namespace jxzt
         private string FormatPolylineSegmentResultLog(PolylineGroup group, KeyValuePair<int, PolylineSegmentResult> kv)
         {
             PolylineSegmentResult value = kv.Value;
-            return $"layerNum={kv.Key},lineshape={GetPolylineSegmentLineShapeForLog(group, kv.Key)},error={value.Error},rawCandidates={value.RawCandidateCount},rawCandidatePixelsBeforeCompoundFilter={value.RawCandidatePixelsBeforeCompoundFilter},explainedCandidatesByCompoundGroup={value.ExplainedCandidatesByCompoundGroup},candidatePixelsAfterCompoundFilter={value.CandidatePixelsAfterCompoundFilter},assignedCore={value.AssignedCoreCount},ignoredAuxiliary={value.IgnoredAuxiliaryCount},compoundGroupId={value.CompoundGroupId},compoundGroupLayers={value.CompoundGroupLayers},extensionPixels={value.ExtensionPixelCount},rawExtensionPixels={value.RawExtensionPixelCount},explainedByNeighborStandard={value.ExplainedByNeighborStandardCount},explainedByCompoundGroup={value.ExplainedByCompoundGroupCount},filteredExtensionPixels={value.FilteredExtensionPixelCount},trueExtensionRatio={value.TrueExtensionRatio:F3},trueExtensionRatioBeforeNeighborFilter={value.TrueExtensionRatioBeforeNeighborFilter:F3},trueExtensionRatioAfterNeighborFilter={value.TrueExtensionRatioAfterNeighborFilter:F3},trueExtensionRatioBeforeCompoundFilter={value.TrueExtensionRatioBeforeCompoundFilter:F3},trueExtensionRatioAfterCompoundFilter={value.TrueExtensionRatioAfterCompoundFilter:F3},coverage={value.Coverage:F2},lengthRatio={value.LengthRatio:F2},lengthRatioBeforeCompoundFilter={value.LengthRatioBeforeCompoundFilter:F2},lengthRatioAfterCompoundFilter={value.LengthRatioAfterCompoundFilter:F2},studentType={value.StudentLineType},prefilterMode={value.PrefilterMode},fullCpuFallbackUsed={value.FullCpuFallbackUsed},fallbackReason={value.GpuFallbackReason},roiPixels={value.GpuRoiPixels},rawOpaqueInRoi={value.GpuRawOpaqueInRoi},nearCandidates={value.GpuNearCandidates},ignoredOpaque={value.GpuIgnoredOpaque},overflow={value.GpuOverflow}";
+            return $"layerNum={kv.Key},lineshape={GetPolylineSegmentLineShapeForLog(group, kv.Key)},error={value.Error},rawCandidates={value.RawCandidateCount},rawCandidatePixelsBeforeCompoundFilter={value.RawCandidatePixelsBeforeCompoundFilter},explainedCandidatesByCompoundGroup={value.ExplainedCandidatesByCompoundGroup},candidatePixelsAfterCompoundFilter={value.CandidatePixelsAfterCompoundFilter},assignedCore={value.AssignedCoreCount},ignoredAuxiliary={value.IgnoredAuxiliaryCount},compoundGroupId={value.CompoundGroupId},compoundGroupLayers={value.CompoundGroupLayers},compoundGroupDisabled={value.CompoundGroupDisabled},compoundGroupConnectionReason={value.CompoundGroupConnectionReason},suppressCurveTooLongByCompoundGroup={value.SuppressCurveTooLongByCompoundGroup},extensionPixels={value.ExtensionPixelCount},rawExtensionPixels={value.RawExtensionPixelCount},explainedByNeighborStandard={value.ExplainedByNeighborStandardCount},explainedByCompoundGroup={value.ExplainedByCompoundGroupCount},filteredExtensionPixels={value.FilteredExtensionPixelCount},trueExtensionRatio={value.TrueExtensionRatio:F3},trueExtensionRatioBeforeNeighborFilter={value.TrueExtensionRatioBeforeNeighborFilter:F3},trueExtensionRatioAfterNeighborFilter={value.TrueExtensionRatioAfterNeighborFilter:F3},trueExtensionRatioBeforeCompoundFilter={value.TrueExtensionRatioBeforeCompoundFilter:F3},trueExtensionRatioAfterCompoundFilter={value.TrueExtensionRatioAfterCompoundFilter:F3},coverage={value.Coverage:F2},lengthRatio={value.LengthRatio:F2},lengthRatioBeforeCompoundFilter={value.LengthRatioBeforeCompoundFilter:F2},lengthRatioAfterCompoundFilter={value.LengthRatioAfterCompoundFilter:F2},studentType={value.StudentLineType},prefilterMode={value.PrefilterMode},fullCpuFallbackUsed={value.FullCpuFallbackUsed},fallbackReason={value.GpuFallbackReason},roiPixels={value.GpuRoiPixels},rawOpaqueInRoi={value.GpuRawOpaqueInRoi},nearCandidates={value.GpuNearCandidates},ignoredOpaque={value.GpuIgnoredOpaque},overflow={value.GpuOverflow}";
         }
 
         private Dictionary<int, PolylineSegmentResult> CreateDefaultPolylineResults(PolylineGroup group, ErrorReson error)
@@ -2669,11 +2722,14 @@ namespace jxzt
                     TrueExtensionRatioAfterCompoundFilter = 0f,
                     CompoundGroupId = 0,
                     CompoundGroupLayers = string.Empty,
+                    CompoundGroupDisabled = false,
+                    CompoundGroupConnectionReason = string.Empty,
                     RawCandidatePixelsBeforeCompoundFilter = 0,
                     ExplainedCandidatesByCompoundGroup = 0,
                     CandidatePixelsAfterCompoundFilter = 0,
                     LengthRatioBeforeCompoundFilter = 0f,
                     LengthRatioAfterCompoundFilter = 0f,
+                    SuppressCurveTooLongByCompoundGroup = false,
                     GpuPrefilterUsed = false,
                     GpuFallbackReason = string.Empty,
                     PrefilterMode = string.Empty,
@@ -3178,6 +3234,8 @@ namespace jxzt
             bool isInCompoundGroup = TryGetCompoundContourGroup(standardLayer, out CompoundContourGroup compoundGroup);
             result.CompoundGroupId = isInCompoundGroup ? compoundGroup.GroupId : 0;
             result.CompoundGroupLayers = isInCompoundGroup ? DescribeCompoundGroupLayers(compoundGroup) : string.Empty;
+            result.CompoundGroupDisabled = isInCompoundGroup && compoundGroup.Disabled;
+            result.CompoundGroupConnectionReason = isInCompoundGroup ? compoundGroup.ConnectionReason : string.Empty;
             List<PositionInt> rawStudentCandidatePixels = studentCandidatePixels;
             CompoundPixelFilterResult compoundCandidateFilter = CreateCompoundFilterResult(rawStudentCandidatePixels, compoundGroup);
             if (standardLayer.lineshape != lineshape.直线)
@@ -3198,6 +3256,8 @@ namespace jxzt
             {
                 result.CompoundGroupId = compoundCandidateFilter.GroupId;
                 result.CompoundGroupLayers = compoundCandidateFilter.GroupLayers;
+                result.CompoundGroupDisabled = compoundCandidateFilter.GroupDisabled;
+                result.CompoundGroupConnectionReason = compoundCandidateFilter.ConnectionReason;
             }
 
             if (studentCandidatePixels == null || studentCandidatePixels.Count == 0)
@@ -3441,17 +3501,51 @@ namespace jxzt
                 result.IsTooLong = result.Recall >= result.RightLimit
                                    && (result.ExtraRatio > 0.42f || lengthRatio > 1.18f)
                                    && result.Precision < 0.86f;
-                result.IsTooLong = result.IsTooLong
-                                   && ShouldReportTooLong(
-                                       result,
-                                       standardLayer,
-                                       Mathf.Max(0, scoreStudentPixels.Count - matchedStudent),
-                                       compoundCandidateFilter.ExplainedCount,
-                                       lengthRatio,
-                                       result.ExtraRatio);
+                result.SuppressCurveTooLongByCompoundGroup = ShouldSuppressCurveTooLongInCompoundGroup(result, standardLayer);
+                if (result.SuppressCurveTooLongByCompoundGroup)
+                {
+                    result.IsTooLong = false;
+                }
+                else
+                {
+                    result.IsTooLong = result.IsTooLong
+                                       && ShouldReportTooLong(
+                                           result,
+                                           standardLayer,
+                                           Mathf.Max(0, scoreStudentPixels.Count - matchedStudent),
+                                           compoundCandidateFilter.ExplainedCount,
+                                           lengthRatio,
+                                           result.ExtraRatio);
+                }
             }
 
             return result;
+        }
+
+        private bool ShouldSuppressCurveTooLongInCompoundGroup(LineMatchResult lineMatch, LayerManager standardLayer)
+        {
+            if (!IsHomeworkRelaxed()
+                || standardLayer == null
+                || !IsCurvedLineShape(standardLayer.lineshape)
+                || lineMatch.CompoundGroupId <= 0
+                || lineMatch.CompoundGroupDisabled)
+            {
+                return false;
+            }
+
+            bool lineTypeLooksAcceptable = standardLayer.lineType == lineMatch.StudentLineType
+                                           || (lineMatch.StudentLineType == linetype.unknown && lineMatch.Recall >= 0.92f);
+            bool compoundFilteringEffective = lineMatch.ExplainedCandidatesByCompoundGroup > 0
+                                              && lineMatch.CandidatePixelsAfterCompoundFilter < lineMatch.RawCandidatePixelsBeforeCompoundFilter
+                                              && (lineMatch.ExplainedCandidatesByCompoundGroup >= Mathf.Max(10, Mathf.CeilToInt(lineMatch.RawCandidatePixelsBeforeCompoundFilter * 0.08f))
+                                                  || lineMatch.CandidatePixelsAfterCompoundFilter <= Mathf.CeilToInt(lineMatch.RawCandidatePixelsBeforeCompoundFilter * 0.92f));
+
+            return lineTypeLooksAcceptable
+                   && compoundFilteringEffective
+                   && lineMatch.Recall >= Mathf.Max(lineMatch.ErrorLimit, 0.45f)
+                   && lineMatch.P95Distance <= lineMatch.Tolerance * 3.0f
+                   && lineMatch.ExtraRatio < 0.65f
+                   && lineMatch.ProjectedLengthRatio < 1.80f;
         }
 
         private bool ShouldReportTooLong(
@@ -3463,6 +3557,11 @@ namespace jxzt
             float filteredTrueExtensionRatio)
         {
             if (lineMatch.CompoundGroupId == 0 || standardLayer == null)
+            {
+                return true;
+            }
+
+            if (lineMatch.CompoundGroupDisabled)
             {
                 return true;
             }
@@ -5355,6 +5454,13 @@ namespace jxzt
 
             result.GroupId = group.GroupId;
             result.GroupLayers = DescribeCompoundGroupLayers(group);
+            result.GroupDisabled = group.Disabled;
+            result.ConnectionReason = group.ConnectionReason;
+            if (group.Disabled)
+            {
+                return result;
+            }
+
             List<PositionInt> otherGroupPixels = GetShiftedCompoundGroupOtherPixels(group, currentLayer, currentOffset);
             if (otherGroupPixels.Count == 0)
             {
@@ -5389,13 +5495,20 @@ namespace jxzt
 
             compoundFilter.GroupId = group.GroupId;
             compoundFilter.GroupLayers = DescribeCompoundGroupLayers(group);
+            compoundFilter.GroupDisabled = group.Disabled;
+            compoundFilter.ConnectionReason = group.ConnectionReason;
+            if (group.Disabled)
+            {
+                return studentCandidatePixels;
+            }
+
             List<PositionInt> otherGroupPixels = GetShiftedCompoundGroupOtherPixels(group, currentLayer, currentOffset);
             if (otherGroupPixels.Count == 0)
             {
                 return studentCandidatePixels;
             }
 
-            int currentDistance = Mathf.CeilToInt(Mathf.Max(tolerance * 2.0f, 10f));
+            int currentDistance = Mathf.CeilToInt(Mathf.Max(tolerance * 1.8f, 9f));
             int otherDistance = Mathf.CeilToInt(Mathf.Max(tolerance * 2.5f, 12f));
             int queryDistance = Mathf.Max(currentDistance, otherDistance);
             PixelBounds queryBounds = ExpandBounds(GetBounds(studentCandidatePixels), queryDistance);
@@ -5452,7 +5565,9 @@ namespace jxzt
                 ExplainedCount = 0,
                 FilteredCount = pixels?.Count ?? 0,
                 GroupId = group?.GroupId ?? 0,
-                GroupLayers = group != null ? DescribeCompoundGroupLayers(group) : string.Empty
+                GroupLayers = group != null ? DescribeCompoundGroupLayers(group) : string.Empty,
+                GroupDisabled = group != null && group.Disabled,
+                ConnectionReason = group != null ? group.ConnectionReason : string.Empty
             };
         }
 
