@@ -6215,8 +6215,9 @@ namespace jxzt
                 return false;
             }
 
-            longCount = meaningfulRuns.Count(v => v >= longInk * 0.75f);
-            dotCount = meaningfulRuns.Count(v => v <= Mathf.Max(2f, longInk * 0.32f));
+            float longInkForCount = longInk;
+            longCount = meaningfulRuns.Count(v => v >= longInkForCount * 0.75f);
+            dotCount = meaningfulRuns.Count(v => v <= Mathf.Max(2f, longInkForCount * 0.32f));
             int minDotCount = Mathf.Max(1, Mathf.CeilToInt(longCount * 0.45f));
             return longCount > 0 && dotCount >= minDotCount;
         }
