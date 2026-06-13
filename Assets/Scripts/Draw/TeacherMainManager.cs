@@ -2613,9 +2613,19 @@ namespace jxzt
             byte[] textureByte;
             using (ScoringPerf.Scope("UploadPrepare.EncodeScreenshot", $"title={_currentTitleIdForUpload}"))
             {
-                textureByte = savePng_btn.gameObject.GetComponent<SavePng>().mtexture.EncodeToPNG();
+                SavePng savePng = savePng_btn.gameObject.GetComponent<SavePng>();
+                if (savePng == null || savePng.mtexture == null)
+                {
+                    ErrorTipsClear("学生答案截图获取失败");
+                    return;
+                }
+                textureByte = savePng.mtexture.EncodeToPNG();
             }
-            if (textureByte == null) { ErrorTipsClear("学生答案截图获取失败"); }
+            if (textureByte == null || textureByte.Length == 0)
+            {
+                ErrorTipsClear("学生答案截图获取失败");
+                return;
+            }
             string wpstr = cameraCompare_btn.transform.GetComponent<AnswerCheck>().str_ErrorPoints;
             if (wpstr == "") wpstr = "文字识别";
             else

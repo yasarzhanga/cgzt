@@ -591,7 +591,7 @@ namespace jxzt
                 layer.lineType = lineMatch.StudentLineType;
                 standardlayer.displayError_position = lineMatch.ErrorPosition;
 
-                string lineMatchDetail = $"layerNum={standardlayer.layerNum};lineshape={standardlayer.lineshape};recall={lineMatch.Recall:F3};precision={lineMatch.Precision:F3};missing={lineMatch.MissingRatio:F3};extra={lineMatch.ExtraRatio:F3};p95={lineMatch.P95Distance:F1};bestOffset={lineMatch.BestOffset};studentLineType={lineMatch.StudentLineType};standardLineType={standardlayer.lineType};patterned={lineMatch.IsPatternedMode};geometry={lineMatch.GeometryPrecision:F3};macro={lineMatch.MacroCoverage:F3};macroLimit={lineMatch.MacroCoverageLimit:F3};span={lineMatch.PatternLengthRatio:F3};endpointMiss={lineMatch.PatternEndpointMiss:F1};endpointLimit={lineMatch.PatternEndpointLimit:F1};extraSpan={lineMatch.PatternExtraSpanRatio:F3};lengthRatio={lineMatch.ProjectedLengthRatio:F3};lengthRatioBeforeCompoundFilter={lineMatch.LengthRatioBeforeCompoundFilter:F3};lengthRatioAfterCompoundFilter={lineMatch.LengthRatioAfterCompoundFilter:F3};suppressCurveTooLongByCompoundGroup={lineMatch.SuppressCurveTooLongByCompoundGroup};compoundGroupId={lineMatch.CompoundGroupId};compoundGroupLayers={lineMatch.CompoundGroupLayers};compoundGroupDisabled={lineMatch.CompoundGroupDisabled};compoundGroupConnectionReason={lineMatch.CompoundGroupConnectionReason};rawCandidates={lineMatch.RawCandidateCount};rawCandidatePixelsBeforeCompoundFilter={lineMatch.RawCandidatePixelsBeforeCompoundFilter};explainedCandidatesByCompoundGroup={lineMatch.ExplainedCandidatesByCompoundGroup};candidatePixelsAfterCompoundFilter={lineMatch.CandidatePixelsAfterCompoundFilter};corePixels={lineMatch.CorePixelCount};ignoredAuxiliary={lineMatch.IgnoredAuxiliaryPixelCount};extensionPixels={lineMatch.ExtensionPixelCount};rawExtensionPixels={lineMatch.RawExtensionPixelCount};explainedByNeighborStandard={lineMatch.ExplainedByNeighborStandardCount};explainedByCompoundGroup={lineMatch.ExplainedByCompoundGroupCount};filteredExtensionPixels={lineMatch.FilteredExtensionPixelCount};trueExtensionRatio={lineMatch.TrueExtensionRatio:F3};trueExtensionRatioBeforeNeighborFilter={lineMatch.TrueExtensionRatioBeforeNeighborFilter:F3};trueExtensionRatioAfterNeighborFilter={lineMatch.TrueExtensionRatioAfterNeighborFilter:F3};trueExtensionRatioBeforeCompoundFilter={lineMatch.TrueExtensionRatioBeforeCompoundFilter:F3};trueExtensionRatioAfterCompoundFilter={lineMatch.TrueExtensionRatioAfterCompoundFilter:F3};scoringStrictness={scoringStrictness};prefilterMode={lineMatch.PrefilterMode};fullCpuFallbackUsed={lineMatch.FullCpuFallbackUsed};fallbackReason={lineMatch.PrefilterFallbackReason};gpuPrefilterEnabled={lineMatch.GpuPrefilterEnabled};gpuPrefilterUsed={lineMatch.GpuPrefilterUsed};gpuPrefilterFallbackReason={lineMatch.GpuPrefilterFallbackReason};roiPixels={lineMatch.GpuRoiPixels};rawOpaqueInRoi={lineMatch.GpuRawOpaqueInRoi};nearCandidates={lineMatch.GpuNearCandidates};ignoredOpaque={lineMatch.GpuIgnoredOpaque};overflow={lineMatch.GpuOverflow}";
+                string lineMatchDetail = $"layerNum={standardlayer.layerNum};lineshape={standardlayer.lineshape};recall={lineMatch.Recall:F3};precision={lineMatch.Precision:F3};missing={lineMatch.MissingRatio:F3};extra={lineMatch.ExtraRatio:F3};p95={lineMatch.P95Distance:F1};bestOffset={lineMatch.BestOffset};studentLineType={lineMatch.StudentLineType};standardLineType={standardlayer.lineType};patterned={lineMatch.IsPatternedMode};geometry={lineMatch.GeometryPrecision:F3};macro={lineMatch.MacroCoverage:F3};macroLimit={lineMatch.MacroCoverageLimit:F3};span={lineMatch.PatternLengthRatio:F3};endpointMiss={lineMatch.PatternEndpointMiss:F1};endpointLimit={lineMatch.PatternEndpointLimit:F1};extraSpan={lineMatch.PatternExtraSpanRatio:F3};lengthRatio={lineMatch.ProjectedLengthRatio:F3};lengthRatioBeforeCompoundFilter={lineMatch.LengthRatioBeforeCompoundFilter:F3};lengthRatioAfterCompoundFilter={lineMatch.LengthRatioAfterCompoundFilter:F3};suppressCurveTooLongByCompoundGroup={lineMatch.SuppressCurveTooLongByCompoundGroup};compoundGroupId={lineMatch.CompoundGroupId};compoundGroupLayers={lineMatch.CompoundGroupLayers};compoundGroupDisabled={lineMatch.CompoundGroupDisabled};compoundGroupConnectionReason={lineMatch.CompoundGroupConnectionReason};rawCandidates={lineMatch.RawCandidateCount};rawCandidatePixelsBeforeCompoundFilter={lineMatch.RawCandidatePixelsBeforeCompoundFilter};explainedCandidatesByCompoundGroup={lineMatch.ExplainedCandidatesByCompoundGroup};candidatePixelsAfterCompoundFilter={lineMatch.CandidatePixelsAfterCompoundFilter};corePixels={lineMatch.CorePixelCount};ignoredAuxiliary={lineMatch.IgnoredAuxiliaryPixelCount};extensionPixels={lineMatch.ExtensionPixelCount};rawExtensionPixels={lineMatch.RawExtensionPixelCount};explainedByNeighborStandard={lineMatch.ExplainedByNeighborStandardCount};explainedByCompoundGroup={lineMatch.ExplainedByCompoundGroupCount};filteredExtensionPixels={lineMatch.FilteredExtensionPixelCount};trueExtensionRatio={lineMatch.TrueExtensionRatio:F3};trueExtensionRatioBeforeNeighborFilter={lineMatch.TrueExtensionRatioBeforeNeighborFilter:F3};trueExtensionRatioAfterNeighborFilter={lineMatch.TrueExtensionRatioAfterNeighborFilter:F3};trueExtensionRatioBeforeCompoundFilter={lineMatch.TrueExtensionRatioBeforeCompoundFilter:F3};trueExtensionRatioAfterCompoundFilter={lineMatch.TrueExtensionRatioAfterCompoundFilter:F3};inkRunCount={lineMatch.DashInkRunCount};gapRunCount={lineMatch.DashGapRunCount};inkMedian={lineMatch.DashInkMedian:F2};inkStableRatio={lineMatch.DashInkStableRatio:F3};gapRatio={lineMatch.DashGapRatio:F3};dashByStableInkRuns={lineMatch.DashByStableInkRuns};lineTypeDecisionReason={lineMatch.LineTypeDecisionReason};dashInkRuns={lineMatch.DashInkRuns};dashGapRuns={lineMatch.DashGapRuns};scoringStrictness={scoringStrictness};prefilterMode={lineMatch.PrefilterMode};fullCpuFallbackUsed={lineMatch.FullCpuFallbackUsed};fallbackReason={lineMatch.PrefilterFallbackReason};gpuPrefilterEnabled={lineMatch.GpuPrefilterEnabled};gpuPrefilterUsed={lineMatch.GpuPrefilterUsed};gpuPrefilterFallbackReason={lineMatch.GpuPrefilterFallbackReason};roiPixels={lineMatch.GpuRoiPixels};rawOpaqueInRoi={lineMatch.GpuRawOpaqueInRoi};nearCandidates={lineMatch.GpuNearCandidates};ignoredOpaque={lineMatch.GpuIgnoredOpaque};overflow={lineMatch.GpuOverflow}";
                 ScoringPerf.LayerMatchMetric(standardlayer.layerNum, lineMatchDetail);
                 if (ScoringPerf.VerboseLayerLogs)
                 {
@@ -1108,6 +1108,15 @@ namespace jxzt
             public string PrefilterMode;
             public bool FullCpuFallbackUsed;
             public string PrefilterFallbackReason;
+            public int DashInkRunCount;
+            public int DashGapRunCount;
+            public float DashInkMedian;
+            public float DashInkStableRatio;
+            public float DashGapRatio;
+            public bool DashByStableInkRuns;
+            public string LineTypeDecisionReason;
+            public string DashInkRuns;
+            public string DashGapRuns;
         }
 
         private struct ProjectionStats
@@ -1115,6 +1124,19 @@ namespace jxzt
             public float Min;
             public float Max;
             public float Length;
+        }
+
+        private struct DashPatternStats
+        {
+            public int InkRunCount;
+            public int GapRunCount;
+            public float InkMedian;
+            public float InkStableRatio;
+            public float GapRatio;
+            public bool DashByStableInkRuns;
+            public string DecisionReason;
+            public string InkRuns;
+            public string GapRuns;
         }
 
         private sealed class LineStudentEvidence
@@ -2295,7 +2317,7 @@ namespace jxzt
                 float trueExtensionRatio = segmentEvidence[i] != null ? segmentEvidence[i].TrueExtensionRatio : 0f;
                 float rightCoverage = GetPolylineSegmentRightCoverage(length[i]);
                 linetype studentType = assignedPixels[i].Count > 0
-                    ? RecognizeLineTypeByProjection(assignedPixels[i], axis[i], segment.Layer.lineType == linetype.实线, length[i])
+                    ? RecognizeLineTypeByProjection(assignedPixels[i], axis[i], segment.Layer.lineType == linetype.实线, length[i], segment.Layer.lineType, out _)
                     : linetype.unknown;
                 LineMatchResult segmentLineTypeEvidence = new LineMatchResult
                 {
@@ -2565,7 +2587,7 @@ namespace jxzt
                 float trueExtensionRatio = segmentEvidence[i] != null ? segmentEvidence[i].TrueExtensionRatio : 0f;
                 float rightCoverage = GetPolylineSegmentRightCoverage(length[i]);
                 linetype studentType = assignedPixels[i].Count > 0
-                    ? RecognizeLineTypeByProjection(assignedPixels[i], axis[i], segment.Layer.lineType == linetype.实线, length[i])
+                    ? RecognizeLineTypeByProjection(assignedPixels[i], axis[i], segment.Layer.lineType == linetype.实线, length[i], segment.Layer.lineType, out _)
                     : linetype.unknown;
                 LineMatchResult segmentLineTypeEvidence = new LineMatchResult
                 {
@@ -3316,7 +3338,7 @@ namespace jxzt
 
             if (usePatternedLineMatch)
             {
-                return EvaluatePatternedLineMatch(result, shiftedStandardPixels, scoreStudentPixels, mainAxis, standardProjectedLength, evidence);
+                return EvaluatePatternedLineMatch(result, shiftedStandardPixels, scoreStudentPixels, mainAxis, standardProjectedLength, standardLayer.lineType, evidence);
             }
 
             int maxSearchDistance = Mathf.CeilToInt(result.Tolerance * 3f);
@@ -3439,7 +3461,8 @@ namespace jxzt
             result.MissingRatio = 1f - result.Recall;
             result.ExtraRatio = evidence != null ? Mathf.Max(1f - result.Precision, evidence.TrueExtensionRatio) : 1f - result.Precision;
             result.P95Distance = Percentile(standardDistances, 0.95f);
-            result.StudentLineType = RecognizeLineTypeByProjection(scoreStudentPixels, mainAxis, standardLayer.lineType == linetype.实线, standardProjectedLength);
+            result.StudentLineType = RecognizeLineTypeByProjection(scoreStudentPixels, mainAxis, standardLayer.lineType == linetype.实线, standardProjectedLength, standardLayer.lineType, out DashPatternStats dashStats);
+            ApplyDashPatternStats(ref result, dashStats);
 
             float studentProjectedLength = evidence != null ? evidence.EvidenceProjectedLength : GetProjectedLength(spanStudentPixels, mainAxis);
             float studentProjectedLengthBeforeCompoundFilter = evidence != null
@@ -3657,9 +3680,11 @@ namespace jxzt
             float patternMinLengthRatio = GetPatternMinLengthRatio();
             float patternMaxLengthRatio = GetPatternMaxLengthRatio();
             float patternMaxExtraSpanRatio = GetPatternMaxExtraSpanRatio();
-            bool lineTypeCompatible = IsPatternedLineTypeCompatible(standardLineType, lineMatch.StudentLineType);
+            bool dashedCompatible = IsDashedLineAcceptedForPattern(lineMatch, standardLineType, patternGeometryLimit, patternMinLengthRatio);
+            bool lineTypeCompatible = IsPatternedLineTypeCompatible(standardLineType, lineMatch.StudentLineType) || dashedCompatible;
 
-            if (lineMatch.StudentLineType == linetype.unknown || lineMatch.GeometryPrecision < patternGeometryLimit)
+            if (lineMatch.StudentLineType == linetype.unknown
+                || (lineMatch.GeometryPrecision < patternGeometryLimit && !dashedCompatible))
             {
                 return ErrorReson.图线不在或偏离正确位置;
             }
@@ -3694,7 +3719,36 @@ namespace jxzt
                 : ErrorReson.图线不在或偏离正确位置;
         }
 
-        private LineMatchResult EvaluatePatternedLineMatch(LineMatchResult result, List<PositionInt> shiftedStandardPixels, List<PositionInt> studentEvidencePixels, Vector2 axis, float standardProjectedLength, LineStudentEvidence evidence)
+        private bool IsDashedLineAcceptedForPattern(LineMatchResult lineMatch, linetype standardLineType, float patternGeometryLimit, float patternMinLengthRatio)
+        {
+            if (standardLineType != linetype.虚线)
+            {
+                return false;
+            }
+
+            bool hasDashEvidence = lineMatch.StudentLineType == linetype.虚线
+                                   || lineMatch.DashByStableInkRuns
+                                   || (IsHomeworkRelaxed()
+                                       && lineMatch.DashInkRunCount >= 2
+                                       && lineMatch.DashGapRunCount >= 1
+                                       && lineMatch.DashGapRatio >= 0.04f
+                                       && lineMatch.DashInkStableRatio >= 0.45f);
+            if (!hasDashEvidence)
+            {
+                return false;
+            }
+
+            float geometryLimit = IsHomeworkRelaxed() ? Mathf.Max(0.45f, patternGeometryLimit - 0.08f) : patternGeometryLimit;
+            float macroNearLimit = Mathf.Max(0.35f, lineMatch.MacroCoverageLimit - (IsHomeworkRelaxed() ? 0.08f : 0.04f));
+            float distanceFactor = IsHomeworkRelaxed() ? 2.6f : 2.0f;
+            bool geometryOk = lineMatch.GeometryPrecision >= geometryLimit
+                              && lineMatch.P95Distance <= lineMatch.Tolerance * distanceFactor
+                              && (lineMatch.MacroCoverage >= macroNearLimit
+                                  || lineMatch.PatternLengthRatio >= patternMinLengthRatio - 0.05f);
+            return geometryOk;
+        }
+
+        private LineMatchResult EvaluatePatternedLineMatch(LineMatchResult result, List<PositionInt> shiftedStandardPixels, List<PositionInt> studentEvidencePixels, Vector2 axis, float standardProjectedLength, linetype standardLineType, LineStudentEvidence evidence)
         {
             ProjectionStats standardStats = GetProjectionStats(shiftedStandardPixels, axis);
             ProjectionStats studentStats = GetProjectionStats(studentEvidencePixels, axis);
@@ -3754,7 +3808,8 @@ namespace jxzt
             float trueExtensionRatio = evidence != null ? evidence.TrueExtensionRatio : 0f;
 
             result.IsPatternedMode = true;
-            result.StudentLineType = RecognizeLineTypeByProjection(studentEvidencePixels, axis);
+            result.StudentLineType = RecognizeLineTypeByProjection(studentEvidencePixels, axis, false, standardLength, standardLineType, out DashPatternStats dashStats);
+            ApplyDashPatternStats(ref result, dashStats);
             result.GeometryPrecision = studentEvidencePixels.Count == 0 ? 0f : inGuideCount / (float)studentEvidencePixels.Count;
             result.MacroCoverage = coveredBins / (float)macroBinCount;
             result.MacroCoverageLimit = GetPatternMacroCoverageLimit(standardLength);
@@ -4056,7 +4111,7 @@ namespace jxzt
 
         private float GetPatternMaxExtraSpanRatio()
         {
-            return IsHomeworkRelaxed() ? 0.28f : PatternMaxExtraSpanRatio;
+            return IsHomeworkRelaxed() ? 0.30f : PatternMaxExtraSpanRatio;
         }
 
         private float GetTrueExtensionLongLimit(float standardProjectedLength, float tolerance)
@@ -5901,10 +5956,30 @@ namespace jxzt
             return max - min;
         }
 
+        private void ApplyDashPatternStats(ref LineMatchResult result, DashPatternStats stats)
+        {
+            result.DashInkRunCount = stats.InkRunCount;
+            result.DashGapRunCount = stats.GapRunCount;
+            result.DashInkMedian = stats.InkMedian;
+            result.DashInkStableRatio = stats.InkStableRatio;
+            result.DashGapRatio = stats.GapRatio;
+            result.DashByStableInkRuns = stats.DashByStableInkRuns;
+            result.LineTypeDecisionReason = stats.DecisionReason ?? string.Empty;
+            result.DashInkRuns = stats.InkRuns ?? string.Empty;
+            result.DashGapRuns = stats.GapRuns ?? string.Empty;
+        }
+
         private linetype RecognizeLineTypeByProjection(List<PositionInt> pixels, Vector2 axis, bool preferSolidForShortInterruptedRuns = false, float referenceProjectedLength = 0f)
         {
+            return RecognizeLineTypeByProjection(pixels, axis, preferSolidForShortInterruptedRuns, referenceProjectedLength, linetype.unknown, out _);
+        }
+
+        private linetype RecognizeLineTypeByProjection(List<PositionInt> pixels, Vector2 axis, bool preferSolidForShortInterruptedRuns, float referenceProjectedLength, linetype expectedLineType, out DashPatternStats dashStats)
+        {
+            dashStats = new DashPatternStats { DecisionReason = "unknown" };
             if (pixels == null || pixels.Count == 0)
             {
+                dashStats.DecisionReason = "noPixels";
                 return linetype.unknown;
             }
 
@@ -5920,6 +5995,7 @@ namespace jxzt
             float length = maxProjection - minProjection;
             if (length < 12f)
             {
+                dashStats.DecisionReason = "solid-tooShortProjection";
                 return linetype.实线;
             }
 
@@ -5935,17 +6011,18 @@ namespace jxzt
 
             FillSmallGaps(occupied, 2);
             BuildRuns(occupied, out List<int> inkRuns, out List<int> gapRuns);
+            UpdateDashPatternStats(ref dashStats, inkRuns, gapRuns);
 
             if (inkRuns.Count <= 1 || gapRuns.Count == 0)
             {
+                dashStats.DecisionReason = "solid-noInterruption";
                 return linetype.实线;
             }
 
-            int totalInk = inkRuns.Sum();
-            int totalGap = gapRuns.Sum();
-            float gapRatio = totalGap / (float)(totalInk + totalGap);
-            if (gapRatio < 0.08f)
+            float solidGapRatioLimit = IsHomeworkRelaxed() ? 0.04f : 0.06f;
+            if (dashStats.GapRatio < solidGapRatioLimit)
             {
+                dashStats.DecisionReason = $"solid-gapRatio<{solidGapRatioLimit:F2}";
                 return linetype.实线;
             }
 
@@ -5955,27 +6032,193 @@ namespace jxzt
             if (preferSolidForShortInterruptedRuns
                 && inkRuns.Count <= 2
                 && length <= shortRunLengthLimit
-                && gapRatio <= 0.28f)
+                && dashStats.GapRatio <= 0.28f)
             {
+                dashStats.DecisionReason = "solid-shortInterruptedExpectedSolid";
                 return linetype.实线;
             }
 
-            List<int> sortedInkRuns = inkRuns.OrderBy(v => v).ToList();
-            float shortInk = sortedInkRuns[Mathf.Clamp(sortedInkRuns.Count / 4, 0, sortedInkRuns.Count - 1)];
-            float longInk = sortedInkRuns[Mathf.Clamp((sortedInkRuns.Count * 3) / 4, 0, sortedInkRuns.Count - 1)];
-            bool hasDotLikeRuns = shortInk <= Mathf.Max(2f, longInk * 0.32f);
-            bool hasStableLongRuns = longInk >= Mathf.Max(3f, shortInk * 2.6f);
-            if (hasDotLikeRuns && hasStableLongRuns)
+            if (TryGetPointDashRunMix(inkRuns, out int longCount, out int dotCount, out float shortInk, out float longInk))
             {
-                int longCount = inkRuns.Count(v => v >= longInk * 0.75f);
-                int dotCount = inkRuns.Count(v => v <= Mathf.Max(2f, longInk * 0.32f));
-                if (longCount > 0 && dotCount > 0)
-                {
-                    return dotCount >= longCount * 1.4f ? linetype.双点画线 : linetype.点画线;
-                }
+                dashStats.DecisionReason = $"centerLine-longShortInkMix,short={shortInk:F1},long={longInk:F1},longCount={longCount},dotCount={dotCount}";
+                return dotCount >= longCount * 1.4f ? linetype.双点画线 : linetype.点画线;
             }
 
+            bool relaxed = IsHomeworkRelaxed();
+            if (LooksLikeDashedLineByStableInkRuns(inkRuns, gapRuns, length, referenceProjectedLength, relaxed, ref dashStats))
+            {
+                dashStats.DecisionReason = "dash-stableInkRuns";
+                return linetype.虚线;
+            }
+
+            if (expectedLineType == linetype.虚线
+                && relaxed
+                && LooksLikeInterruptedDashedFallback(inkRuns, gapRuns, dashStats.GapRatio))
+            {
+                dashStats.DecisionReason = "dash-relaxedExpectedDashedInterrupted";
+                return linetype.虚线;
+            }
+
+            dashStats.DecisionReason = "dash-interruptedFallback";
             return linetype.虚线;
+        }
+
+        private void UpdateDashPatternStats(ref DashPatternStats stats, List<int> inkRuns, List<int> gapRuns)
+        {
+            stats.InkRunCount = inkRuns?.Count ?? 0;
+            stats.GapRunCount = gapRuns?.Count ?? 0;
+            stats.InkRuns = DescribeRuns(inkRuns);
+            stats.GapRuns = DescribeRuns(gapRuns);
+            int totalInk = inkRuns?.Sum() ?? 0;
+            int totalGap = gapRuns?.Sum() ?? 0;
+            stats.GapRatio = totalInk + totalGap > 0 ? totalGap / (float)(totalInk + totalGap) : 0f;
+        }
+
+        private string DescribeRuns(List<int> runs)
+        {
+            if (runs == null || runs.Count == 0)
+            {
+                return string.Empty;
+            }
+
+            const int maxLoggedRuns = 16;
+            string text = string.Join(",", runs.Take(maxLoggedRuns));
+            if (runs.Count > maxLoggedRuns)
+            {
+                text += ",...";
+            }
+            return text;
+        }
+
+        private bool LooksLikeDashedLineByStableInkRuns(List<int> inkRuns, List<int> gapRuns, float projectedLength, float referenceProjectedLength, bool relaxedMode, ref DashPatternStats stats)
+        {
+            if (inkRuns == null || gapRuns == null)
+            {
+                return false;
+            }
+
+            float lengthForShortLine = referenceProjectedLength > 0f ? referenceProjectedLength : projectedLength;
+            int requiredInkRuns = relaxedMode || lengthForShortLine < 72f ? 2 : 3;
+            if (inkRuns.Count < requiredInkRuns || gapRuns.Count < 1)
+            {
+                return false;
+            }
+
+            float minGapRatio = relaxedMode ? 0.04f : 0.06f;
+            if (stats.GapRatio < minGapRatio)
+            {
+                return false;
+            }
+
+            int minInkRun = relaxedMode ? 2 : 3;
+            List<int> validInkRuns = inkRuns.Where(v => v >= minInkRun).ToList();
+            if (validInkRuns.Count < 2)
+            {
+                return false;
+            }
+
+            float median = GetMedianRunLength(validInkRuns);
+            if (median <= 0f)
+            {
+                return false;
+            }
+
+            float lowerScale = relaxedMode ? 0.35f : 0.45f;
+            float upperScale = relaxedMode ? 2.20f : 1.85f;
+            float stableRatio = GetStableRunRatio(validInkRuns, median, lowerScale, upperScale);
+            stats.InkMedian = median;
+            stats.InkStableRatio = stableRatio;
+
+            float minStableRatio = relaxedMode ? 0.55f : 0.65f;
+            if (stableRatio < minStableRatio)
+            {
+                return false;
+            }
+
+            if (TryGetPointDashRunMix(inkRuns, out _, out _, out _, out _))
+            {
+                return false;
+            }
+
+            stats.DashByStableInkRuns = true;
+            return true;
+        }
+
+        private bool LooksLikeInterruptedDashedFallback(List<int> inkRuns, List<int> gapRuns, float gapRatio)
+        {
+            if (inkRuns == null || gapRuns == null || inkRuns.Count < 2 || gapRuns.Count < 1 || gapRatio < 0.04f)
+            {
+                return false;
+            }
+
+            if (TryGetPointDashRunMix(inkRuns, out _, out _, out _, out _))
+            {
+                return false;
+            }
+
+            return inkRuns.Count(v => v >= 2) >= 2;
+        }
+
+        private float GetMedianRunLength(List<int> runs)
+        {
+            if (runs == null || runs.Count == 0)
+            {
+                return 0f;
+            }
+
+            List<int> sorted = runs.OrderBy(v => v).ToList();
+            int mid = sorted.Count / 2;
+            if (sorted.Count % 2 == 1)
+            {
+                return sorted[mid];
+            }
+
+            return (sorted[mid - 1] + sorted[mid]) * 0.5f;
+        }
+
+        private float GetStableRunRatio(List<int> runs, float median, float lowerScale, float upperScale)
+        {
+            if (runs == null || runs.Count == 0 || median <= 0f)
+            {
+                return 0f;
+            }
+
+            float lower = median * lowerScale;
+            float upper = median * upperScale;
+            int stableCount = runs.Count(v => v >= lower && v <= upper);
+            return stableCount / (float)runs.Count;
+        }
+
+        private bool TryGetPointDashRunMix(List<int> inkRuns, out int longCount, out int dotCount, out float shortInk, out float longInk)
+        {
+            longCount = 0;
+            dotCount = 0;
+            shortInk = 0f;
+            longInk = 0f;
+            if (inkRuns == null)
+            {
+                return false;
+            }
+
+            List<int> meaningfulRuns = inkRuns.Where(v => v >= 2).OrderBy(v => v).ToList();
+            if (meaningfulRuns.Count < 3)
+            {
+                return false;
+            }
+
+            shortInk = meaningfulRuns[Mathf.Clamp(meaningfulRuns.Count / 4, 0, meaningfulRuns.Count - 1)];
+            longInk = meaningfulRuns[Mathf.Clamp((meaningfulRuns.Count * 3) / 4, 0, meaningfulRuns.Count - 1)];
+            bool hasDotLikeRuns = shortInk <= Mathf.Max(2f, longInk * 0.32f);
+            bool hasStableLongRuns = longInk >= Mathf.Max(4f, shortInk * 2.6f);
+            if (!hasDotLikeRuns || !hasStableLongRuns)
+            {
+                return false;
+            }
+
+            longCount = meaningfulRuns.Count(v => v >= longInk * 0.75f);
+            dotCount = meaningfulRuns.Count(v => v <= Mathf.Max(2f, longInk * 0.32f));
+            int minDotCount = Mathf.Max(1, Mathf.CeilToInt(longCount * 0.45f));
+            return longCount > 0 && dotCount >= minDotCount;
         }
 
         private void FillSmallGaps(bool[] occupied, int maxGapLength)

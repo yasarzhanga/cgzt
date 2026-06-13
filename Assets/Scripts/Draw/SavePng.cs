@@ -19,7 +19,7 @@ namespace jxzt
 
 
         public RawImage rawImage;
-      public  Texture2D mtexture;
+        public Texture2D mtexture;
 
         //保存图像信息，时间戳+像素RGB
         private struct ImageData
@@ -33,6 +33,11 @@ namespace jxzt
         public int textureoffset_y = 85;
         public int targettexture_w = 1308;
         public int targettexture_h = 910;
+        [Header("动态截图区域")]
+        [SerializeField] private bool useDynamicCaptureRect = true;
+        [SerializeField] private RectTransform captureRectTransform;
+        [SerializeField] private Vector4 captureInset;
+        private readonly Vector3[] captureWorldCorners = new Vector3[4];
 
         // Start is called before the first frame update
         void Start()
@@ -151,17 +156,20 @@ namespace jxzt
             try {
                 if (saveToFile)
                 {
-                    using (ScoringPerf.Scope("Screenshot.LoadAndClip", $"clip={textureoffset_x},{textureoffset_y},{targettexture_w},{targettexture_h}"))
+                    LoadImageTitle loader = transform.GetComponent<LoadImageTitle>();
+                    loader.LoadImage(pngPath);
+                    bool usedDynamicClip = TryResolveCaptureClip(loader.texture.width, loader.texture.height, out int clipX, out int clipY, out int clipWidth, out int clipHeight);
+                    using (ScoringPerf.Scope("Screenshot.LoadAndClip", $"clip={clipX},{clipY},{clipWidth},{clipHeight};dynamic={usedDynamicClip}"))
                     {
-                        transform.GetComponent<LoadImageTitle>().LoadImage(pngPath);
-                        mtexture = ClipTexture(transform.GetComponent<LoadImageTitle>().texture, textureoffset_x, textureoffset_y, targettexture_w, targettexture_h);
+                        mtexture = ClipTexture(loader.texture, clipX, clipY, clipWidth, clipHeight);
                     }
                 }
                 else
                 {
-                    using (ScoringPerf.Scope("Screenshot.ReadPixelsClip", $"clip={textureoffset_x},{textureoffset_y},{targettexture_w},{targettexture_h}"))
+                    bool usedDynamicClip = TryResolveCaptureClip(Screen.width, Screen.height, out int clipX, out int clipY, out int clipWidth, out int clipHeight);
+                    using (ScoringPerf.Scope("Screenshot.ReadPixelsClip", $"clip={clipX},{clipY},{clipWidth},{clipHeight};dynamic={usedDynamicClip}"))
                     {
-                        mtexture = CaptureScreenClip(textureoffset_x, textureoffset_y, targettexture_w, targettexture_h);
+                        mtexture = CaptureScreenClip(clipX, clipY, clipWidth, clipHeight);
                     }
 
                     LoadImageTitle loader = transform.GetComponent<LoadImageTitle>();
@@ -208,27 +216,112 @@ namespace jxzt
         /// <returns></returns>
         Texture2D ClipTexture(Texture2D originalTexture, int clipX, int clipY, int clipWidth, int clipHeight)
         {
-            Texture2D clippedTexture = new Texture2D(clipWidth, clipHeight);
-            for (int x = 0; x < clipWidth; x++)
-            {
-                for (int y = 0; y < clipHeight; y++)
-                {
-                    clippedTexture.SetPixel(x, y, originalTexture.GetPixel(clipX + x, clipY + y));
-                }
-            }
-            clippedTexture.Apply();
+            if (originalTexture == null) return null;
+            ClampClipToSource(originalTexture.width, originalTexture.height, ref clipX, ref clipY, ref clipWidth, ref clipHeight);
+            Texture2D clippedTexture = new Texture2D(clipWidth, clipHeight, TextureFormat.RGBA32, false);
+            clippedTexture.SetPixels(originalTexture.GetPixels(clipX, clipY, clipWidth, clipHeight));
+            clippedTexture.Apply(false, false);
             return clippedTexture;
+        }
+
+        private bool TryResolveCaptureClip(int sourceWidth, int sourceHeight, out int clipX, out int clipY, out int clipWidth, out int clipHeight)
+        {
+            bool usedDynamicRect = false;
+            if (useDynamicCaptureRect && TryGetCaptureScreenRect(out Rect screenRect))
+            {
+                float scaleX = Screen.width > 0 ? sourceWidth / (float)Screen.width : 1f;
+                float scaleY = Screen.height > 0 ? sourceHeight / (float)Screen.height : 1f;
+                clipX = Mathf.FloorToInt(screenRect.xMin * scaleX);
+                clipY = Mathf.FloorToInt(screenRect.yMin * scaleY);
+                int right = Mathf.CeilToInt(screenRect.xMax * scaleX);
+                int top = Mathf.CeilToInt(screenRect.yMax * scaleY);
+                clipWidth = right - clipX;
+                clipHeight = top - clipY;
+                usedDynamicRect = true;
+            }
+            else
+            {
+                clipX = textureoffset_x;
+                clipY = textureoffset_y;
+                clipWidth = targettexture_w;
+                clipHeight = targettexture_h;
+            }
+
+            ClampClipToSource(sourceWidth, sourceHeight, ref clipX, ref clipY, ref clipWidth, ref clipHeight);
+            return usedDynamicRect;
+        }
+
+        private bool TryGetCaptureScreenRect(out Rect screenRect)
+        {
+            screenRect = Rect.zero;
+            RectTransform targetRect = captureRectTransform;
+            if (targetRect == null && rawImage != null)
+            {
+                targetRect = rawImage.rectTransform;
+            }
+            if (targetRect == null && TeacherMainManager.instance != null)
+            {
+                targetRect = TeacherMainManager.instance.GetComponent<RectTransform>();
+            }
+            if (targetRect == null)
+            {
+                return false;
+            }
+
+            targetRect.GetWorldCorners(captureWorldCorners);
+            Canvas canvas = targetRect.GetComponentInParent<Canvas>();
+            Camera uiCamera = null;
+            if (canvas != null && canvas.renderMode != RenderMode.ScreenSpaceOverlay)
+            {
+                uiCamera = canvas.worldCamera != null ? canvas.worldCamera : Camera.main;
+            }
+
+            float minX = float.MaxValue;
+            float minY = float.MaxValue;
+            float maxX = float.MinValue;
+            float maxY = float.MinValue;
+            for (int i = 0; i < captureWorldCorners.Length; i++)
+            {
+                Vector2 screenPoint = RectTransformUtility.WorldToScreenPoint(uiCamera, captureWorldCorners[i]);
+                minX = Mathf.Min(minX, screenPoint.x);
+                minY = Mathf.Min(minY, screenPoint.y);
+                maxX = Mathf.Max(maxX, screenPoint.x);
+                maxY = Mathf.Max(maxY, screenPoint.y);
+            }
+
+            minX += captureInset.x;
+            minY += captureInset.y;
+            maxX -= captureInset.z;
+            maxY -= captureInset.w;
+            minX = Mathf.Clamp(minX, 0f, Screen.width);
+            minY = Mathf.Clamp(minY, 0f, Screen.height);
+            maxX = Mathf.Clamp(maxX, 0f, Screen.width);
+            maxY = Mathf.Clamp(maxY, 0f, Screen.height);
+            if (maxX <= minX || maxY <= minY)
+            {
+                return false;
+            }
+
+            screenRect = Rect.MinMaxRect(minX, minY, maxX, maxY);
+            return true;
+        }
+
+        private void ClampClipToSource(int sourceWidth, int sourceHeight, ref int clipX, ref int clipY, ref int clipWidth, ref int clipHeight)
+        {
+            sourceWidth = Mathf.Max(1, sourceWidth);
+            sourceHeight = Mathf.Max(1, sourceHeight);
+            clipX = Mathf.Clamp(clipX, 0, sourceWidth - 1);
+            clipY = Mathf.Clamp(clipY, 0, sourceHeight - 1);
+            clipWidth = Mathf.Clamp(clipWidth, 1, sourceWidth - clipX);
+            clipHeight = Mathf.Clamp(clipHeight, 1, sourceHeight - clipY);
         }
 
         private Texture2D CaptureScreenClip(int clipX, int clipY, int clipWidth, int clipHeight)
         {
-            int x = Mathf.Clamp(clipX, 0, Mathf.Max(0, Screen.width - 1));
-            int y = Mathf.Clamp(clipY, 0, Mathf.Max(0, Screen.height - 1));
-            int width = Mathf.Clamp(clipWidth, 1, Mathf.Max(1, Screen.width - x));
-            int height = Mathf.Clamp(clipHeight, 1, Mathf.Max(1, Screen.height - y));
+            ClampClipToSource(Screen.width, Screen.height, ref clipX, ref clipY, ref clipWidth, ref clipHeight);
 
-            Texture2D clippedTexture = new Texture2D(width, height, TextureFormat.RGB24, false);
-            clippedTexture.ReadPixels(new Rect(x, y, width, height), 0, 0, false);
+            Texture2D clippedTexture = new Texture2D(clipWidth, clipHeight, TextureFormat.RGB24, false);
+            clippedTexture.ReadPixels(new Rect(clipX, clipY, clipWidth, clipHeight), 0, 0, false);
             clippedTexture.Apply(false, false);
             return clippedTexture;
         }
